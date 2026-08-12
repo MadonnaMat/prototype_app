@@ -92,12 +92,28 @@ jobs:
         with:
           bundler-cache: true
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install JS dependencies
+        run: yarn install --immutable
+
       - name: Run tests
         env:
           RAILS_ENV: test
           # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           # REDIS_URL: redis://localhost:6379/0
         run: 'bin/ci --only "Tests: Rails"'
+
+      - name: Verify seeds run cleanly
+        env:
+          RAILS_ENV: test
+        run: 'bin/ci --only "Tests: Seeds"'
 
   system-test:
     runs-on: ubuntu-latest
