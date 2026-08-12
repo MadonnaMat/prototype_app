@@ -16,6 +16,10 @@ gem "turbo-rails"
 gem "stimulus-rails"
 # Build JSON APIs with ease [https://github.com/rails/jbuilder]
 gem "jbuilder"
+# Generate OpenAPI/Swagger docs from routes + YARD comments, no RSpec required [https://github.com/a-chacon/oas_rails]
+gem "oas_rails"
+# Handle Cross-Origin Resource Sharing, needed for RapiDoc's "try it out" requests [https://github.com/cyu/rack-cors]
+gem "rack-cors"
 
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 # gem "bcrypt", "~> 3.1.7"
@@ -52,17 +56,29 @@ group :development, :test do
 
   # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
   gem "rubocop-rails-omakase", require: false
+
+  # Complexity scorer (ABC-based) to flag the worst offenders in app/ and lib/ [https://github.com/seattlerb/flog]
+  gem "flog", require: false
 end
 
 group :development do
   # Use console on exceptions pages [https://github.com/rails/web-console]
   gem "web-console"
+
+  # Richer error page with source context, local/instance variable inspection, and a REPL [https://github.com/BetterErrors/better_errors]
+  gem "better_errors"
+  # Shows the full stack trace (not just the top frame) in better_errors [https://github.com/banister/binding_of_caller]
+  gem "binding_of_caller"
 end
 
 group :test do
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "capybara"
   gem "selenium-webdriver"
+  # Code coverage reporting [https://github.com/simplecov-ruby/simplecov]
+  gem "simplecov", require: false
+  # Object#stub / Minitest::Mock, extracted out of minitest itself as of minitest 6 [https://github.com/minitest/minitest-mock]
+  gem "minitest-mock"
 end
 
 gem "cssbundling-rails", "~> 1.4"

@@ -12,6 +12,11 @@ describe("HelloWorld", () => {
 
   it("renders the shadcn Button", () => {
     render(<HelloWorld name="Rails" />)
-    expect(screen.getByRole("button", { name: "shadcn Button" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /shadcn Button/ })).toBeInTheDocument()
+  })
+
+  it("renders the lucide Rocket icon inside the button", () => {
+    const { container } = render(<HelloWorld name="Rails" />)
+    expect(container.querySelector("svg")).toBeInTheDocument()
   })
 })

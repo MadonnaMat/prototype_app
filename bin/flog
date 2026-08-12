@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+require "rubygems"
+require "bundler/setup"
+
+ARGV.concat %w[ app lib ] if ARGV.empty?
+
+load Gem.bin_path("flog", "flog")

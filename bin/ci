@@ -3,4 +3,48 @@ require_relative "../config/boot"
 require "active_support/continuous_integration"
 
 CI = ActiveSupport::ContinuousIntegration
+
+# Steps that are slow and/or need extra setup (e.g. a real browser), so they're
+# opted out of the default full run. Pass --include-system-tests to run them
+# as part of everything, or target one directly with --only.
+OPT_OUT_BY_DEFAULT = [ "Tests: System" ]
+
+# Run a single named step instead of the whole suite, e.g.:
+#   bin/ci --only "Style: Ruby"
+#
+# This is how CI jobs (see .github/workflows/*.yml) run individual checks in
+# parallel while still sourcing the actual command for each one from
+# config/ci.rb — that file is the only place step commands are defined, so
+# there's no separate copy in the workflow YAML to drift out of sync.
+only_title = nil
+if (flag_index = ARGV.index("--only"))
+  only_title = ARGV[flag_index + 1]
+  ARGV.slice!(flag_index, 2)
+end
+
+include_system_tests = !!ARGV.delete("--include-system-tests")
+matched = false
+
+CI.prepend(Module.new do
+  define_method(:step) do |title, *command|
+    if only_title
+      next unless title == only_title
+    elsif OPT_OUT_BY_DEFAULT.include?(title) && !include_system_tests
+      next
+    end
+
+    matched = true
+    super(title, *command)
+  end
+end)
+
+if only_title
+  at_exit do
+    unless matched
+      warn "\e[1;31mNo CI step named #{only_title.inspect} in config/ci.rb\e[0m"
+      exit 1
+    end
+  end
+end
+
 require_relative "../config/ci.rb"

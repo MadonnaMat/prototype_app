@@ -1,0 +1,9 @@
+one:
+  title: Write project proposal
+  description: Draft the initial scope and timeline for review.
+  done: false
+
+two:
+  title: Buy groceries
+  description: Milk, eggs, bread.
+  done: true

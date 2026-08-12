@@ -5,6 +5,12 @@ on:
   push:
     branches: [ main ]
 
+# Every job below runs `bin/ci --only "<step title>"` rather than the check's
+# raw command directly. config/ci.rb is the single place step commands are
+# defined; jobs here only decide *which* step to run in *which* environment,
+# so there's nothing here that can drift out of sync with what `bin/ci` runs
+# locally.
+
 jobs:
   scan_ruby:
     runs-on: ubuntu-latest
@@ -19,11 +25,11 @@ jobs:
           bundler-cache: true
 
       - name: Scan for common Rails security vulnerabilities using static analysis
-        run: bin/brakeman --no-pager
-      
+        run: 'bin/ci --only "Security: Brakeman code analysis"'
+
       - name: Scan for known security vulnerabilities in gems used
-        run: bin/bundler-audit
-      
+        run: 'bin/ci --only "Security: Gem audit"'
+
   lint:
     runs-on: ubuntu-latest
     env:
@@ -48,7 +54,22 @@ jobs:
             rubocop-${{ runner.os }}-${{ env.DEPENDENCIES_HASH }}-
 
       - name: Lint code for consistent style
-        run: bin/rubocop -f github
+        run: 'bin/ci --only "Style: Ruby"'
+
+  flog:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Check code complexity
+        run: 'bin/ci --only "Quality: Flog complexity"'
 
   test:
     runs-on: ubuntu-latest
@@ -76,7 +97,7 @@ jobs:
           RAILS_ENV: test
           # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           # REDIS_URL: redis://localhost:6379/0
-        run: bin/rails db:test:prepare test
+        run: 'bin/ci --only "Tests: Rails"'
 
   system-test:
     runs-on: ubuntu-latest
@@ -99,12 +120,23 @@ jobs:
         with:
           bundler-cache: true
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install JS dependencies
+        run: yarn install --immutable
+
       - name: Run System Tests
         env:
           RAILS_ENV: test
           # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           # REDIS_URL: redis://localhost:6379/0
-        run: bin/rails db:test:prepare test:system
+        run: 'bin/ci --only "Tests: System"'
 
       - name: Keep screenshots from failed system tests
         uses: actions/upload-artifact@v4

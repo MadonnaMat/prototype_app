@@ -8,6 +8,9 @@
 /.bundle
 /vendor
 
+# Ignore SimpleCov coverage reports.
+/coverage
+
 # Ignore all environment files.
 /.env*
 

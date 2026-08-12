@@ -1,0 +1,15 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Open Coverage Report",
+      "type": "shell",
+      "command": "explorer.exe \"$(wslpath -w coverage/index.html)\" || true; explorer.exe \"$(wslpath -w coverage/javascript/index.html)\" || true",
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
