@@ -1,5 +1,30 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["app/javascript/application.tsx", "app/views/pwa/service-worker.js"],
-  "project": ["app/javascript/**/*.{ts,tsx}"]
+  "entry": [
+    "app/javascript/src/**/ror_components/*.client.tsx",
+    "app/javascript/src/**/ror_components/*.server.tsx",
+    "app/views/pwa/service-worker.js"
+  ],
+  "project": ["app/javascript/**/*.{ts,tsx}"],
+  "ignoreDependencies": [
+    "@rspack/cli",
+    "@rspack/core",
+    "@rspack/dev-server",
+    "@rspack/plugin-react-refresh",
+    "@swc/core",
+    "@types/prop-types",
+    "compression-webpack-plugin",
+    "css-loader",
+    "css-minimizer-webpack-plugin",
+    "mini-css-extract-plugin",
+    "prop-types",
+    "react-on-rails",
+    "react-refresh",
+    "@types/react-refresh",
+    "rspack-manifest-plugin",
+    "sass-loader",
+    "shakapacker",
+    "style-loader",
+    "swc-loader"
+  ]
 }

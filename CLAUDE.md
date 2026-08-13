@@ -31,7 +31,7 @@ language, and always before wrapping up a task.
 - `yarn test` / `yarn test:coverage` — Vitest; coverage report at
   `coverage/javascript/index.html` (kept separate from Ruby's `coverage/` —
   Vitest's default output dir collides with SimpleCov's, see
-  `vitest.config.ts`'s `reportsDirectory`)
+  `vitest.config.mts`'s `reportsDirectory`)
 - `yarn quality` — Knip; flags unused files/exports/deps, exits nonzero on
   any finding
 - `yarn complexity` — dedicated complexity-only ESLint config

@@ -8,8 +8,6 @@ gem "propshaft"
 gem "sqlite3", ">= 2.1"
 # Use the Puma web server [https://github.com/puma/puma]
 gem "puma", ">= 5.0"
-# Bundle and transpile JavaScript [https://github.com/rails/jsbundling-rails]
-gem "jsbundling-rails"
 # Hotwire's SPA-like page accelerator [https://turbo.hotwired.dev]
 gem "turbo-rails"
 # Hotwire's modest JavaScript framework [https://stimulus.hotwired.dev]
@@ -81,4 +79,10 @@ group :test do
   gem "minitest-mock"
 end
 
+# CSS bundling (Tailwind v4 CLI) — kept independent of Shakapacker, which only owns JS/TS
 gem "cssbundling-rails", "~> 1.4"
+
+# SSR + hydration for the React frontend [https://github.com/shakacode/react_on_rails]
+gem "react_on_rails", "= 17.0"
+
+gem "shakapacker", "= 10.3"

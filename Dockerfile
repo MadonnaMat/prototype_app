@@ -74,6 +74,12 @@ RUN rm -rf node_modules
 # Final stage for app image
 FROM base
 
+# React on Rails server-side rendering shells out to Node (ExecJS) per request, so the
+# Node binary (not node_modules -- the compiled SSR bundle is self-contained) has to survive
+# into the runtime image, unlike a typical Rails+JS setup that drops Node after asset build.
+COPY --from=build /usr/local/node /usr/local/node
+ENV PATH=/usr/local/node/bin:$PATH
+
 # Run and own only the runtime files as a non-root user for security
 RUN groupadd --system --gid 1000 rails && \
     useradd rails --uid 1000 --gid 1000 --create-home --shell /bin/bash

@@ -5,7 +5,17 @@ import reactHooks from "eslint-plugin-react-hooks"
 import globals from "globals"
 
 export default tseslint.config(
-  { ignores: ["app/assets/builds/**", "vendor/**", "public/**"] },
+  {
+    ignores: [
+      "app/assets/builds/**",
+      "vendor/**",
+      "public/**",
+      "ssr-generated/**",
+      "tmp/**",
+      "config/rspack/**",
+      "babel.config.js",
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
