@@ -97,7 +97,11 @@ development:
     # For running dev server with https, set `server: https`.
     # server: https
 
-    host: localhost
+    # Forced to the literal IPv4 loopback address rather than "localhost": in WSL2, Ruby's
+    # "localhost" resolution can prefer IPv6 (::1) while the Node dev server only binds to
+    # 127.0.0.1, so Shakapacker::DevServerProxy's connection to the dev server never completes
+    # and every /packs/* asset request 502s even though the dev server itself is running fine.
+    host: 127.0.0.1
     port: 3035
     # Hot Module Replacement updates modules while the application is running without a full reload
     # Used instead of the `hot` key in https://webpack.js.org/configuration/dev-server/#devserverhot

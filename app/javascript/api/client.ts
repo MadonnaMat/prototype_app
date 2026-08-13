@@ -1,0 +1,41 @@
+export class ApiValidationError extends Error {
+  errors: Record<string, string[]>
+
+  constructor(errors: Record<string, string[]>) {
+    super("Validation failed")
+    this.name = "ApiValidationError"
+    this.errors = errors
+  }
+}
+
+export class ApiRequestError extends Error {
+  status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = "ApiRequestError"
+    this.status = status
+  }
+}
+
+interface ApiMeta {
+  success: boolean
+  error?: string
+  errors?: Record<string, string[]>
+}
+
+export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const response = await fetch(`/api${path}`, {
+    ...options,
+    headers: { "Content-Type": "application/json", ...options.headers },
+  })
+  const body = (await response.json()) as { meta: ApiMeta }
+
+  if (response.status === 422) {
+    throw new ApiValidationError(body.meta.errors ?? {})
+  }
+  if (!response.ok) {
+    throw new ApiRequestError(body.meta.error ?? response.statusText, response.status)
+  }
+  return body as T
+}

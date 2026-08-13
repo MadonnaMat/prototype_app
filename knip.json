@@ -3,6 +3,8 @@
   "entry": [
     "app/javascript/src/**/ror_components/*.client.tsx",
     "app/javascript/src/**/ror_components/*.server.tsx",
+    "app/javascript/components/ui/**/*.tsx",
+    "app/javascript/types/api.ts",
     "app/views/pwa/service-worker.js"
   ],
   "project": ["app/javascript/**/*.{ts,tsx}"],
@@ -18,7 +20,6 @@
     "css-minimizer-webpack-plugin",
     "mini-css-extract-plugin",
     "prop-types",
-    "react-on-rails",
     "react-refresh",
     "@types/react-refresh",
     "rspack-manifest-plugin",

@@ -8,4 +8,12 @@ fi
 # Default to port 3000 if not specified
 export PORT="${PORT:-3000}"
 
+# Generate React on Rails' auto-bundled pack registration files (app/javascript/packs/generated/*,
+# app/javascript/generated/*) before starting the watchers. These are gitignored build artifacts;
+# config/shakapacker.yml's precompile_hook only fires automatically via `assets:precompile` and the
+# TestHelper's build_test_command, not when bin/shakapacker-dev-server / bin/shakapacker-watch are
+# launched directly the way Procfile.dev does -- so on a fresh checkout the dev/server bundles fail
+# to resolve their generated imports unless this runs first.
+bundle exec rake react_on_rails:generate_packs
+
 exec foreman start -f Procfile.dev --env /dev/null "$@"

@@ -1,11 +1,81 @@
 require "application_system_test_case"
 
 class PagesTest < ApplicationSystemTestCase
-  test "visiting the home page renders the React app" do
+  test "visiting the home page renders the task list" do
     visit root_path
 
-    assert_selector "h1", text: "Prototype App"
-    assert_text "Hello, Rails! React 19 is rendering this component."
-    assert_button "shadcn Button"
+    assert_selector "h1", text: "Tasks"
+    assert_text Task.first.title
+    assert_link "New Task"
+  end
+
+  test "creating a task from the list page shows a success toast" do
+    visit root_path
+    click_on "New Task"
+
+    assert_selector "h1", text: "New task"
+    fill_in "Title", with: "Walk the dog"
+    click_on "Create task"
+
+    assert_selector "h1", text: "Tasks"
+    assert_text "Walk the dog"
+    assert_text "Task created"
+  end
+
+  test "backing out of a new task with no edits does not ask for confirmation" do
+    visit root_path
+    click_on "New Task"
+
+    assert_selector "h1", text: "New task"
+    click_on "Back"
+
+    assert_selector "h1", text: "Tasks"
+  end
+
+  test "backing out of an edited form asks for confirmation before discarding" do
+    visit root_path
+    click_on "New Task"
+
+    fill_in "Title", with: "Unsaved task"
+    click_on "Back"
+
+    assert_text "Discard changes?"
+
+    click_on "Cancel"
+    assert_selector "h1", text: "New task"
+    assert_field "Title", with: "Unsaved task"
+
+    click_on "Back"
+    click_on "Discard"
+
+    assert_selector "h1", text: "Tasks"
+    assert_no_text "Unsaved task"
+  end
+
+  test "editing a task updates it in the list" do
+    task = Task.create!(title: "Original title", description: "", done: false)
+    visit root_path
+
+    click_on task.title
+    assert_selector "h1", text: "Edit task"
+    fill_in "Title", with: "Updated title"
+    click_on "Save changes"
+
+    assert_selector "h1", text: "Tasks"
+    assert_text "Updated title"
+    assert_no_text "Original title"
+  end
+
+  test "deleting a task requires confirmation" do
+    task = Task.create!(title: "Delete me", description: "", done: false)
+    visit root_path
+
+    click_on "Delete \"#{task.title}\""
+    assert_text "Delete \"#{task.title}\"?"
+    assert_text "Delete me"
+
+    click_on "Delete", exact: true
+
+    assert_no_text "Delete me"
   end
 end
