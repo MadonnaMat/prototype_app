@@ -1,17 +1,7 @@
 import { useState } from "react"
 import { Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+import { ConfirmDialog } from "@/components/ConfirmDialog"
 import { useDeleteTaskMutation } from "@/hooks/useTaskMutations"
 import type { Task } from "@/api/tasks"
 
@@ -28,22 +18,16 @@ export function DeleteTaskDialog({ task }: DeleteTaskDialogProps) {
   }
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger render={<Button variant="destructive" size="icon-sm" aria-label={`Delete "${task.title}"`} />}>
-        <Trash2 />
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Delete &quot;{task.title}&quot;?</AlertDialogTitle>
-          <AlertDialogDescription>This can&apos;t be undone.</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction disabled={deleteMutation.isPending} onClick={handleConfirm}>
-            {deleteMutation.isPending ? "Deleting…" : "Delete"}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmDialog
+      open={open}
+      onOpenChange={setOpen}
+      trigger={<Button variant="destructive" size="icon-sm" aria-label={`Delete "${task.title}"`} />}
+      triggerContent={<Trash2 />}
+      title={`Delete "${task.title}"?`}
+      description="This can't be undone."
+      confirmLabel={deleteMutation.isPending ? "Deleting…" : "Delete"}
+      confirmDisabled={deleteMutation.isPending}
+      onConfirm={handleConfirm}
+    />
   )
 }

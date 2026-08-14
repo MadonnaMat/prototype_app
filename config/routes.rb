@@ -16,10 +16,15 @@ Rails.application.routes.draw do
   # Defines the root path route ("/")
   root "pages#home"
 
-  # Client-side routing fallback (React Router paths like /tasks/new, /tasks/5/edit).
-  # Excludes /api and /docs so unmatched requests under those prefixes still 404 normally
-  # instead of rendering the SPA shell.
+  # Dedicated route (rather than parsing request.path in the controller) so
+  # params[:id] is available for seeding SSR props on the React Router
+  # /tasks/:id/edit path. Must come before the catch-all below.
+  get "/tasks/:id/edit", to: "pages#home"
+
+  # Client-side routing fallback (React Router paths like /tasks/new).
+  # Excludes /api and /docs (and their sub-paths) so unmatched requests under
+  # those prefixes still 404 normally instead of rendering the SPA shell.
   get "*path", to: "pages#home",
-      constraints: ->(request) { !request.path.start_with?("/api/", "/docs") },
+      constraints: ->(request) { !request.path.match?(%r{\A/(api|docs)(/|\z)}) },
       format: false
 end

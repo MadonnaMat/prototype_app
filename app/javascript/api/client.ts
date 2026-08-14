@@ -25,10 +25,15 @@ interface ApiMeta {
 }
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(`/api${path}`, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...options.headers },
-  })
+  let response: Response
+  try {
+    response = await fetch(`/api${path}`, {
+      ...options,
+      headers: { "Content-Type": "application/json", ...options.headers },
+    })
+  } catch {
+    throw new ApiRequestError("Network error — please check your connection and try again.", 0)
+  }
   const body = (await response.json()) as { meta: ApiMeta }
 
   if (response.status === 422) {

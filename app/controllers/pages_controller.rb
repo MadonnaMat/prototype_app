@@ -1,6 +1,4 @@
 class PagesController < ApplicationController
-  TASK_ATTRS = %i[id title description done created_at updated_at].freeze
-
   def home
     @task_app_props = task_app_props
   end
@@ -8,17 +6,13 @@ class PagesController < ApplicationController
   private
 
   def task_app_props
-    if (task_id = edit_task_id_from_path)
-      task = Task.find_by(id: task_id)
-      task ? { initialTask: task.as_json(only: TASK_ATTRS) } : {}
+    if params[:id]
+      task = Task.find_by(id: params[:id])
+      task ? { initialTask: task.as_json(only: Task::API_ATTRIBUTES) } : {}
     elsif request.path == "/"
-      { initialTasks: Task.all.as_json(only: TASK_ATTRS) }
+      { initialTasks: Task.all.as_json(only: Task::API_ATTRIBUTES) }
     else
       {}
     end
-  end
-
-  def edit_task_id_from_path
-    request.path[%r{\A/tasks/(\d+)/edit\z}, 1]
   end
 end

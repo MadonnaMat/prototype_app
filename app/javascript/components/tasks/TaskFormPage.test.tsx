@@ -70,6 +70,18 @@ describe("TaskFormPage", () => {
     await waitFor(() => expect(screen.getByText("Task not found.")).toBeInTheDocument())
   })
 
+  it("shows a load-error state (not not-found) for a server error", async () => {
+    server.use(
+      http.get("/api/tasks/:id", () =>
+        HttpResponse.json({ meta: { success: false, error: "Internal error" } }, { status: 500 })
+      )
+    )
+    renderPage("/tasks/5/edit")
+
+    await waitFor(() => expect(screen.getByText("Something went wrong loading this task.")).toBeInTheDocument())
+    expect(screen.queryByText("Task not found.")).not.toBeInTheDocument()
+  })
+
   it("renders inline validation errors from the server", async () => {
     server.use(
       http.post("/api/tasks", () =>

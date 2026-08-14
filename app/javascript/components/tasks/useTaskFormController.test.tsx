@@ -6,6 +6,8 @@ import { QueryClientProvider } from "@tanstack/react-query"
 import { http, HttpResponse } from "msw"
 import { server } from "@/test/msw/server"
 import { createQueryClient } from "@/lib/query-client"
+import { buildTask } from "@/test/msw/handlers"
+import { SsrDataContext, type SsrData } from "@/src/TaskApp/routes/ssr-data-context"
 import { useTaskFormController } from "./useTaskFormController"
 
 const mockNavigate = vi.fn()
@@ -23,6 +25,18 @@ function wrapper({ children }: { children: ReactNode }) {
       <MemoryRouter>{children}</MemoryRouter>
     </QueryClientProvider>
   )
+}
+
+function wrapperWithSsr(ssrData: SsrData) {
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <QueryClientProvider client={createQueryClient()}>
+        <MemoryRouter>
+          <SsrDataContext.Provider value={ssrData}>{children}</SsrDataContext.Provider>
+        </MemoryRouter>
+      </QueryClientProvider>
+    )
+  }
 }
 
 describe("useTaskFormController", () => {
@@ -70,7 +84,7 @@ describe("useTaskFormController", () => {
       expect(mockToastSuccess).toHaveBeenCalledWith("Task updated")
     })
 
-    it("reports notFound when the task fetch fails", async () => {
+    it("reports notFound when the task fetch fails with a 404", async () => {
       server.use(
         http.get("/api/tasks/:id", () =>
           HttpResponse.json({ meta: { success: false, error: "Not found" } }, { status: 404 })
@@ -79,6 +93,39 @@ describe("useTaskFormController", () => {
       const { result } = renderHook(() => useTaskFormController("999"), { wrapper })
 
       await waitFor(() => expect(result.current.notFound).toBe(true))
+      expect(result.current.loadError).toBe(false)
+    })
+
+    it("reports loadError (not notFound) when the task fetch fails with a server error", async () => {
+      server.use(
+        http.get("/api/tasks/:id", () =>
+          HttpResponse.json({ meta: { success: false, error: "Internal error" } }, { status: 500 })
+        )
+      )
+      const { result } = renderHook(() => useTaskFormController("5"), { wrapper })
+
+      await waitFor(() => expect(result.current.loadError).toBe(true))
+      expect(result.current.notFound).toBe(false)
+    })
+
+    it("uses SSR initialTask as initialData when its id matches the route id", () => {
+      const initialTask = buildTask({ id: 5, title: "Seeded via SSR" })
+      const { result } = renderHook(() => useTaskFormController("5"), {
+        wrapper: wrapperWithSsr({ initialTask }),
+      })
+
+      expect(result.current.isReady).toBe(true)
+      expect(result.current.initialValues?.title).toBe("Seeded via SSR")
+    })
+
+    it("ignores SSR initialTask when its id doesn't match the route id", () => {
+      const initialTask = buildTask({ id: 7, title: "Wrong task" })
+      const { result } = renderHook(() => useTaskFormController("5"), {
+        wrapper: wrapperWithSsr({ initialTask }),
+      })
+
+      expect(result.current.isReady).toBe(false)
+      expect(result.current.initialValues).toBeUndefined()
     })
   })
 })

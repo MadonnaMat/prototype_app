@@ -29,7 +29,7 @@ export function useUpdateTaskMutation() {
       if (previous) {
         queryClient.setQueryData<Task[]>(
           taskKeys.lists(),
-          previous.map((task) => (task.id === id ? { ...task, ...data } : task))
+          previous.map((task) => (String(task.id) === String(id) ? { ...task, ...data } : task))
         )
       }
       return { previous }

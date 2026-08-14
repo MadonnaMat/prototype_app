@@ -5,13 +5,24 @@ import { useTaskFormController } from "./useTaskFormController"
 export function TaskFormPage() {
   const { id } = useParams<{ id?: string }>()
   const navigate = useNavigate()
-  const { isReady, notFound, initialValues, onSubmit, isSubmitting, fieldErrors, submitError } =
+  const { isReady, notFound, loadError, initialValues, onSubmit, isSubmitting, fieldErrors, submitError } =
     useTaskFormController(id)
 
   if (notFound) {
     return (
       <div className="mx-auto max-w-lg p-4">
         <p className="mb-4">Task not found.</p>
+        <Link to="/" className="text-primary underline-offset-4 hover:underline">
+          Back to tasks
+        </Link>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="mx-auto max-w-lg p-4">
+        <p className="mb-4">Something went wrong loading this task.</p>
         <Link to="/" className="text-primary underline-offset-4 hover:underline">
           Back to tasks
         </Link>

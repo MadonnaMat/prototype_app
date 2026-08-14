@@ -36,4 +36,13 @@ describe("apiRequest", () => {
     expect((error as ApiRequestError).message).toBe("Not found")
     expect((error as ApiRequestError).status).toBe(404)
   })
+
+  it("wraps a network-level fetch failure in an ApiRequestError", async () => {
+    server.use(http.get("/api/widgets/2", () => HttpResponse.error()))
+
+    const error = await apiRequest("/widgets/2").catch((e: unknown) => e)
+
+    expect(error).toBeInstanceOf(ApiRequestError)
+    expect((error as ApiRequestError).status).toBe(0)
+  })
 })

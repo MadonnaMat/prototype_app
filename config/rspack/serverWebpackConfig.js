@@ -1,7 +1,7 @@
 // The source code including full typescript support is available at: 
 // https://github.com/shakacode/react-on-rails-demo-ssr-hmr/blob/master/config/webpack/serverWebpackConfig.js
 
-const { merge, config } = require('shakapacker');
+const { config } = require('shakapacker');
 const commonWebpackConfig = require('./commonWebpackConfig');
 
 const bundler = config.assets_bundler === 'rspack'
@@ -27,26 +27,6 @@ const configureServer = () => {
   }
 
   serverWebpackConfig.entry = serverEntry;
-
-  // Remove the mini-css-extract-plugin from the style loaders because
-  // the client build will handle exporting CSS.
-  // replace file-loader with null-loader
-  serverWebpackConfig.module.rules.forEach((loader) => {
-    if (loader.use && loader.use.filter) {
-      loader.use = loader.use.filter((item) => {
-        let testValue = '';
-        if (typeof item === 'string') {
-          testValue = item;
-        } else if (item && typeof item.loader === 'string') {
-          testValue = item.loader;
-        }
-        return !(
-          testValue.includes('mini-css-extract-plugin') ||
-          testValue.includes('cssExtractLoader') // Rspack uses this path
-        );
-      });
-    }
-  });
 
   // No splitting of chunks for a server bundle
   serverWebpackConfig.optimization = {

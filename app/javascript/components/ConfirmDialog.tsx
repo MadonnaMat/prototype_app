@@ -1,3 +1,4 @@
+import type { ReactElement, ReactNode } from "react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -7,6 +8,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
 export interface ConfirmDialogProps {
@@ -16,7 +18,12 @@ export interface ConfirmDialogProps {
   description: string
   confirmLabel?: string
   cancelLabel?: string
+  confirmDisabled?: boolean
   onConfirm: () => void
+  /** Element used as the trigger's rendered shell, e.g. `<Button variant="destructive" />`. */
+  trigger?: ReactElement
+  /** Content rendered inside the trigger (icon/label), merged into `trigger` by AlertDialogTrigger. */
+  triggerContent?: ReactNode
 }
 
 export function ConfirmDialog({
@@ -26,10 +33,14 @@ export function ConfirmDialog({
   description,
   confirmLabel = "Continue",
   cancelLabel = "Cancel",
+  confirmDisabled = false,
   onConfirm,
+  trigger,
+  triggerContent,
 }: ConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
+      {trigger && <AlertDialogTrigger render={trigger}>{triggerContent}</AlertDialogTrigger>}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
@@ -37,7 +48,9 @@ export function ConfirmDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>{confirmLabel}</AlertDialogAction>
+          <AlertDialogAction disabled={confirmDisabled} onClick={onConfirm}>
+            {confirmLabel}
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

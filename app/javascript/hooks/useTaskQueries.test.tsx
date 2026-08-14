@@ -44,6 +44,10 @@ describe("useTaskQuery", () => {
 describe("taskKeys", () => {
   it("builds distinct list/detail keys", () => {
     expect(taskKeys.lists()).toEqual(["tasks", "list"])
-    expect(taskKeys.detail(3)).toEqual(["tasks", "detail", 3])
+    expect(taskKeys.detail(3)).toEqual(["tasks", "detail", "3"])
+  })
+
+  it("builds the same detail key regardless of id type", () => {
+    expect(taskKeys.detail(3)).toEqual(taskKeys.detail("3"))
   })
 })

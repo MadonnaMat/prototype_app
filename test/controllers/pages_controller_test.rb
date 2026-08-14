@@ -35,6 +35,11 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "does not swallow a bare /api request into the SPA shell" do
+    get "/api"
+    assert_response :not_found
+  end
+
   test "does not swallow the OpenAPI docs route into the SPA shell" do
     get "/docs"
     assert_response :success

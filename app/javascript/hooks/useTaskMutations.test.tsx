@@ -44,6 +44,19 @@ describe("useUpdateTaskMutation", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
   })
 
+  it("optimistically updates the cached list when id is a string (e.g. from route params)", async () => {
+    const queryClient = createQueryClient()
+    queryClient.setQueryData<Task[]>(taskKeys.lists(), [seedTask])
+    const { result } = renderHook(() => useUpdateTaskMutation(), { wrapper: createQueryWrapper(queryClient) })
+
+    act(() => result.current.mutate({ id: "1", data: { title: "New title" } }))
+
+    await waitFor(() => {
+      expect(queryClient.getQueryData<Task[]>(taskKeys.lists())?.[0].title).toBe("New title")
+    })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+  })
+
   it("rolls back the optimistic update when the request fails", async () => {
     server.use(
       http.patch("/api/tasks/:id", () =>

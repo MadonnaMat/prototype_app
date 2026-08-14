@@ -4,12 +4,25 @@ import { useTaskQuery } from "@/hooks/useTaskQueries"
 import { useCreateTaskMutation, useUpdateTaskMutation } from "@/hooks/useTaskMutations"
 import { useSsrData } from "@/src/TaskApp/routes/ssr-data-context"
 import { ApiValidationError, ApiRequestError } from "@/api/client"
-import type { TaskInput } from "@/api/tasks"
+import type { Task, TaskInput } from "@/api/tasks"
+
+// Only trust SSR-seeded data when it's actually for the route we're on -- it stays
+// fixed for the whole app lifetime, so a client-side nav to a different task's edit
+// page must fall through to a real fetch instead of flashing the previous task's data.
+function ssrInitialDataFor(id: string | undefined, initialTask: Task | undefined) {
+  return initialTask && String(initialTask.id) === id ? initialTask : undefined
+}
+
+function classifyLoadError(isError: boolean, error: unknown) {
+  if (!isError) return { notFound: false, loadError: false }
+  const notFound = error instanceof ApiRequestError && error.status === 404
+  return { notFound, loadError: !notFound }
+}
 
 export function useTaskFormController(id?: string) {
   const isEdit = id !== undefined
   const { initialTask } = useSsrData()
-  const taskQuery = useTaskQuery(id ?? "", initialTask)
+  const taskQuery = useTaskQuery(id ?? "", ssrInitialDataFor(id, initialTask))
   const createMutation = useCreateTaskMutation()
   const updateMutation = useUpdateTaskMutation()
   const navigate = useNavigate()
@@ -27,9 +40,12 @@ export function useTaskFormController(id?: string) {
     }
   }
 
+  const { notFound, loadError } = classifyLoadError(isEdit && taskQuery.isError, taskQuery.error)
+
   return {
     isReady: !isEdit || taskQuery.isSuccess,
-    notFound: isEdit && taskQuery.isError,
+    notFound,
+    loadError,
     initialValues: isEdit ? taskQuery.data : undefined,
     onSubmit,
     isSubmitting: mutation.isPending,
