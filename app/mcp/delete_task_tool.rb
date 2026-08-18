@@ -3,14 +3,14 @@ class DeleteTaskTool < MCP::Tool
   title "Delete Task"
   description "Delete a task."
   input_schema(
-    properties: { id: { type: "integer" } },
+    properties: { id: { type: "integer", minimum: 1 } },
     required: [ "id" ],
     additionalProperties: false,
   )
 
   def self.call(id:, server_context:, **)
     TaskSerialization.rescue_errors do
-      TaskSerialization.find_task(id) do |task|
+      TaskSerialization.find_owned_task(id) do |task|
         if task.destroy
           TaskSerialization.deleted_response(id)
         else

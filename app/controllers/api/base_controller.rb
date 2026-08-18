@@ -7,6 +7,7 @@ module Api
   #   { meta: { success: false, error/errors: ... } }
   class BaseController < ApplicationController
     skip_before_action :verify_authenticity_token
+    before_action :authenticate_request!
 
     rescue_from StandardError, with: :render_internal_server_error
     rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
@@ -37,10 +38,45 @@ module Api
       render_error(exception, status: :internal_server_error)
     end
 
-    def render_error(exception, status:)
-      meta = { success: false, error: exception.message }
-      meta[:backtrace] = exception.backtrace if Rails.env.local?
+    # Accepts either an exception (from rescue_from) or a plain message
+    # (from an explicit check like authenticate_api_token!), so both paths
+    # produce the same { meta: { success: false, error: ... } } envelope.
+    def render_error(exception_or_message, status:)
+      message = exception_or_message.respond_to?(:message) ? exception_or_message.message : exception_or_message
+      meta = { success: false, error: message }
+      meta[:backtrace] = exception_or_message.backtrace if exception_or_message.respond_to?(:backtrace) && Rails.env.local?
       render json: { meta: meta }, status: status
+    end
+
+    # Accepts either a Bearer API token (MCP, external API clients — long-
+    # lived, unaffected by browser login/logout) or the browser SPA's
+    # session cookie (same-origin fetch sends it automatically; no manual
+    # header wiring needed client-side). Token is checked first since its
+    # presence signals explicit client intent.
+    def authenticate_request!
+      Current.user = authenticate_via_token || authenticate_via_cookie
+      render_error("Unauthenticated", status: :unauthorized) unless Current.user
+    end
+
+    def authenticate_via_token
+      token = request.headers["Authorization"]&.delete_prefix("Bearer ")
+      User.authenticate_by_token(token) if token.present?
+    end
+
+    def authenticate_via_cookie
+      Current.session = find_session_by_cookie
+      Current.session&.user
+    end
+
+    # Only for a user's own account responses (login/registration/account) —
+    # never used to serialize another user, so the token never leaks via a
+    # task's owner_username (see TaskSerialization#task_json). api_token is
+    # a method, not a column (see User#api_token) — it's only non-nil right
+    # after generate_api_token ran in this same request (create/login/
+    # regenerate_token); any other response has a freshly-loaded user with
+    # no token to show, by design.
+    def user_json(user)
+      user.as_json(only: %i[id username email_address], methods: :api_token)
     end
   end
 end

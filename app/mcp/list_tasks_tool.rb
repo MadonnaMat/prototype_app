@@ -10,7 +10,7 @@ class ListTasksTool < MCP::Tool
   input_schema(
     properties: {
       limit: { type: "integer", minimum: 1, maximum: MAX_LIMIT },
-      cursor: { type: "integer" }
+      cursor: { type: "integer", minimum: 1 }
     },
     required: [],
     additionalProperties: false,
@@ -18,7 +18,7 @@ class ListTasksTool < MCP::Tool
 
   def self.call(server_context:, limit: DEFAULT_LIMIT, cursor: nil, **)
     TaskSerialization.rescue_errors do
-      scope = Task.order(:id)
+      scope = Task.visible_to(Current.user).order(:id)
       scope = scope.where("id > ?", cursor) if cursor
       tasks = scope.limit(limit).to_a
 

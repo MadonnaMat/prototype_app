@@ -6,15 +6,16 @@ class CreateTaskTool < MCP::Tool
     properties: {
       title: { type: "string" },
       description: { type: "string" },
-      done: { type: "boolean" }
+      done: { type: "boolean" },
+      is_public: { type: "boolean" }
     },
     required: [ "title" ],
     additionalProperties: false,
   )
 
-  def self.call(title:, server_context:, description: nil, done: false, **)
+  def self.call(title:, server_context:, description: nil, done: false, is_public: false, **)
     TaskSerialization.rescue_errors do
-      task = Task.new(title: title, description: description, done: done)
+      task = Current.user.tasks.new(title: title, description: description, done: done, is_public: is_public)
       success = task.save
       TaskSerialization.persist_response(task, success)
     end

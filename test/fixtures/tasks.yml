@@ -2,8 +2,19 @@ one:
   title: Write project proposal
   description: Draft the initial scope and timeline for review.
   done: false
+  user: one
+  is_public: false
 
 two:
   title: Buy groceries
   description: Milk, eggs, bread.
   done: true
+  user: one
+  is_public: false
+
+three:
+  title: Team lunch order
+  description: Sushi Friday, RSVP by noon.
+  done: false
+  user: two
+  is_public: true
