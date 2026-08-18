@@ -19,8 +19,9 @@ language, and always before wrapping up a task.
 **Ruby** (after editing anything under `app/`, `lib/`, `config/`, `db/`):
 - `bin/rubocop` — style
 - `bin/rails test` — also regenerates the SimpleCov report at `coverage/index.html`
-- `bin/rails flog` — complexity gate over `app/` + `lib/`; fails if total
-  score exceeds 100 (current baseline is ~58 — see `lib/tasks/flog.rake`)
+- `bin/rails flog` — complexity gate over `app/` + `lib/`; fails if the single
+  worst method's ABC score exceeds 25 (current worst is ~14.6 — see
+  `lib/tasks/flog.rake`)
 - `bin/brakeman` — security static analysis; run when touching auth, params,
   raw SQL, or anything else user-input-facing
 - `bin/bundler-audit` — only needed after changing the `Gemfile`
