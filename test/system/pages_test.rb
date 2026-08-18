@@ -54,6 +54,7 @@ class PagesTest < ApplicationSystemTestCase
     click_on "Discard"
 
     assert_selector "h1", text: "Tasks"
+    assert_no_text "Unsaved task"
   end
 
   test "editing a task updates it in the list" do

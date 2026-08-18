@@ -62,7 +62,7 @@ module Api
     private
 
     def set_task
-      @task = Task.visible_to(Current.user).find(params[:id])
+      @task = Task.visible_to(Current.user).includes(:user).find(params[:id])
     end
 
     # Visible-but-not-owned (someone else's public task) is a 403, since the
@@ -70,7 +70,7 @@ module Api
     # neither owned nor public never gets here at all — set_task raises
     # RecordNotFound for it, so its existence isn't leaked as a 403.
     def require_ownership!
-      render_error("Forbidden", status: :forbidden) unless @task.user == Current.user
+      render_error("Forbidden", status: :forbidden) unless @task.owned_by?(Current.user)
     end
 
     def task_params

@@ -1,0 +1,60 @@
+#!/usr/bin/env ruby
+require "rubygems"
+require "bundler/setup"
+require "json"
+require "fileutils"
+
+require_relative "../config/environment"
+
+PLACEHOLDER_TOKEN = "Bearer <paste your account's API token here>".freeze
+
+# The app never persists a plaintext api_token (see User#api_token) — only
+# its digest — so the only way to hand the inspector a working Bearer token
+# is to mint a fresh one here. Scoped to the first user (the typical
+# single-developer dev DB) purely as a local dev convenience; the tracked
+# mcp-inspector.json keeps a placeholder for anyone who wants to point the
+# inspector at a specific account by hand instead.
+user = User.order(:id).first
+abort "No users exist yet — sign up in the app first, then re-run this." unless user
+
+user.regenerate_api_token!
+token = user.api_token
+
+root = File.expand_path("..", __dir__)
+tracked_config_path = File.join(root, "mcp-inspector.json")
+config = JSON.parse(File.read(tracked_config_path))
+config["mcpServers"]["prototype-app"]["headers"]["Authorization"] = "Bearer #{token}"
+
+# --catalog mode (the web UI) persists any edits made in-session — new
+# servers, settings, etc. — back to whatever file it was loaded from, so we
+# run it against this gitignored copy under tmp/ rather than the tracked
+# mcp-inspector.json directly (the real token would otherwise get written
+# straight back into a committable file, same as the leak this replaced).
+config_path = File.join(root, "tmp", "mcp-inspector.local.json")
+FileUtils.mkdir_p(File.dirname(config_path))
+File.write(config_path, JSON.pretty_generate(config))
+
+cli_mode = ARGV.delete("--cli")
+inspector_args =
+  if cli_mode
+    %w[--cli --config] + [ config_path ] + %w[--server prototype-app]
+  else
+    %w[--catalog] + [ config_path ]
+  end
+
+begin
+  success = system("mcp-inspector", *inspector_args, *ARGV)
+  exit_code = success ? 0 : 1
+ensure
+  # Fold back whatever the inspector session left in the local copy —
+  # including any edits made via the UI — but with the real token scrubbed
+  # back to a placeholder before it can land in the tracked file.
+  if File.exist?(config_path)
+    updated = JSON.parse(File.read(config_path))
+    updated.dig("mcpServers", "prototype-app", "headers")&.merge!("Authorization" => PLACEHOLDER_TOKEN)
+    File.write(tracked_config_path, JSON.pretty_generate(updated) + "\n")
+    File.delete(config_path)
+  end
+end
+
+exit(exit_code)

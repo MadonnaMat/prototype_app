@@ -5,7 +5,7 @@
       "url": "http://localhost:3000/mcp",
       "paginatedLists": true,
       "headers": {
-        "Authorization": "Bearer 7SAqRZS4oi6gsKxCFgAdie57"
+        "Authorization": "Bearer <paste your account's API token here>"
       }
     },
     "filesystem-server-default": {

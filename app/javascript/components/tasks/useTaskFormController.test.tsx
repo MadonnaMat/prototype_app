@@ -8,6 +8,7 @@ import { server } from "@/test/msw/server"
 import { createQueryClient } from "@/lib/query-client"
 import { buildTask } from "@/test/msw/handlers"
 import { SsrDataContext, type SsrData } from "@/src/TaskApp/routes/ssr-data-context"
+import { AuthProvider } from "@/contexts/AuthContext"
 import { useTaskFormController } from "./useTaskFormController"
 
 const mockNavigate = vi.fn()
@@ -22,7 +23,9 @@ vi.mock("sonner", () => ({ toast: { success: (...args: unknown[]) => mockToastSu
 function wrapper({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={createQueryClient()}>
-      <MemoryRouter>{children}</MemoryRouter>
+      <AuthProvider>
+        <MemoryRouter>{children}</MemoryRouter>
+      </AuthProvider>
     </QueryClientProvider>
   )
 }
@@ -31,9 +34,11 @@ function wrapperWithSsr(ssrData: SsrData) {
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={createQueryClient()}>
-        <MemoryRouter>
-          <SsrDataContext.Provider value={ssrData}>{children}</SsrDataContext.Provider>
-        </MemoryRouter>
+        <AuthProvider>
+          <MemoryRouter>
+            <SsrDataContext.Provider value={ssrData}>{children}</SsrDataContext.Provider>
+          </MemoryRouter>
+        </AuthProvider>
       </QueryClientProvider>
     )
   }
@@ -106,6 +111,20 @@ describe("useTaskFormController", () => {
 
       await waitFor(() => expect(result.current.loadError).toBe(true))
       expect(result.current.notFound).toBe(false)
+    })
+
+    it("reports isForbidden for a visible task owned by someone else", async () => {
+      server.use(
+        http.get("/api/tasks/:id", ({ params }) =>
+          HttpResponse.json({
+            task: buildTask({ id: Number(params.id), owner_username: "someone-else" }),
+            meta: { success: true },
+          })
+        )
+      )
+      const { result } = renderHook(() => useTaskFormController("5"), { wrapper })
+
+      await waitFor(() => expect(result.current.isForbidden).toBe(true))
     })
 
     it("uses SSR initialTask as initialData when its id matches the route id", () => {

@@ -1,4 +1,4 @@
-import { useCallback, useState, type FormEvent } from "react"
+import { useCallback, useState, type SubmitEvent } from "react"
 import { useBeforeUnload } from "react-router"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -84,7 +84,7 @@ export function TaskForm({
     )
   )
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     onSubmit({ title, description, done, is_public: isPublic })
   }

@@ -28,9 +28,25 @@ module Api
       assert_includes meta["errors"]["username"], "has already been taken"
     end
 
+    test "create with a duplicate email_address returns a validation error" do
+      post api_registration_url, params: {
+        username: "newuser", email_address: users(:one).email_address,
+        password: "password", password_confirmation: "password"
+      }, as: :json
+      assert_response :unprocessable_entity
+      assert_equal "application/json; charset=utf-8", response.content_type
+      meta = JSON.parse(response.body)["meta"]
+      assert_equal false, meta["success"]
+      assert_includes meta["errors"]["email_address"], "has already been taken"
+    end
+
     test "create with a missing password returns a validation error" do
       post api_registration_url, params: { username: "newuser", email_address: "new@example.com" }, as: :json
       assert_response :unprocessable_entity
+      assert_equal "application/json; charset=utf-8", response.content_type
+      meta = JSON.parse(response.body)["meta"]
+      assert_equal false, meta["success"]
+      assert meta["errors"]["password"].present?
     end
   end
 end

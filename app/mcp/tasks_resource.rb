@@ -10,7 +10,7 @@ class TasksResource < MCP::Resource
   mime_type "application/json"
 
   def self.contents(server_context: nil)
-    raise McpUnauthorizedError unless Current.user
+    McpResourceAuthorization.require_user!
 
     tasks = Task.visible_to(Current.user).includes(:user).order(:id)
     payload = { tasks: tasks.map { |task| TaskSerialization.task_json(task) } }.to_json

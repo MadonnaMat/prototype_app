@@ -6,6 +6,7 @@ class User < ApplicationRecord
   normalizes :email_address, with: ->(e) { e.strip.downcase }
 
   validates :username, presence: true, uniqueness: true
+  validates :email_address, presence: true, uniqueness: true
 
   before_create :generate_api_token
 
@@ -33,6 +34,14 @@ class User < ApplicationRecord
     return nil if raw_token.blank?
 
     find_by(api_token_digest: digest_token(raw_token))
+  end
+
+  # Shared by Api::BaseController and McpTokenAuthentication so "Bearer "
+  # prefix-stripping stays a single implementation across the two auth
+  # entry points (a Rails controller and a Rack middleware) rather than
+  # being hand-copied in both.
+  def self.authenticate_by_bearer_header(header)
+    authenticate_by_token(header&.delete_prefix("Bearer "))
   end
 
   def self.digest_token(raw_token)

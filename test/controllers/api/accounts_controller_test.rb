@@ -9,6 +9,8 @@ module Api
     test "show without a token returns unauthenticated" do
       get api_account_url, as: :json
       assert_response :unauthorized
+      assert_equal "application/json; charset=utf-8", response.content_type
+      assert_equal false, JSON.parse(response.body)["meta"]["success"]
     end
 
     test "show returns the current user without a token" do
@@ -29,6 +31,10 @@ module Api
     test "update with a taken username returns a validation error" do
       patch api_account_url, params: { username: users(:two).username }, headers: @auth_headers, as: :json
       assert_response :unprocessable_entity
+      assert_equal "application/json; charset=utf-8", response.content_type
+      meta = JSON.parse(response.body)["meta"]
+      assert_equal false, meta["success"]
+      assert_includes meta["errors"]["username"], "has already been taken"
     end
 
     test "regenerate_token returns a fresh token and invalidates the old one" do

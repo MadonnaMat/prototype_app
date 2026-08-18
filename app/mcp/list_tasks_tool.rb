@@ -18,7 +18,7 @@ class ListTasksTool < MCP::Tool
 
   def self.call(server_context:, limit: DEFAULT_LIMIT, cursor: nil, **)
     TaskSerialization.rescue_errors do
-      scope = Task.visible_to(Current.user).order(:id)
+      scope = Task.visible_to(Current.user).includes(:user).order(:id)
       scope = scope.where("id > ?", cursor) if cursor
       tasks = scope.limit(limit).to_a
 

@@ -1,13 +1,16 @@
-import { useState, type FormEvent } from "react"
+import { useState, type SubmitEvent } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/contexts/AuthContext"
 import { regenerateToken, updateAccount } from "@/api/auth"
 import { ApiValidationError } from "@/api/client"
+import { taskKeys } from "@/hooks/useTaskQueries"
 
 export function AccountPage() {
   const { user, setUser } = useAuth()
+  const queryClient = useQueryClient()
   const [username, setUsername] = useState("")
   const [syncedUserId, setSyncedUserId] = useState<number | null>(null)
   const [isSavingUsername, setIsSavingUsername] = useState(false)
@@ -26,12 +29,14 @@ export function AccountPage() {
 
   if (!user) return null
 
-  async function handleUsernameSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleUsernameSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     setIsSavingUsername(true)
     setUsernameError(undefined)
     try {
       setUser(await updateAccount({ username }))
+      // owner_username on cached tasks is now stale for this user's own tasks.
+      queryClient.invalidateQueries({ queryKey: taskKeys.all })
     } catch (err) {
       setUsernameError(
         err instanceof ApiValidationError ? err.errors.username?.join(", ") : "Could not update username."

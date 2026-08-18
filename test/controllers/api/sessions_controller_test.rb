@@ -26,6 +26,10 @@ module Api
     test "create with unknown email returns unauthorized as json" do
       post api_session_url, params: { email_address: "nobody@example.com", password: "password" }, as: :json
       assert_response :unauthorized
+      assert_equal "application/json; charset=utf-8", response.content_type
+      meta = JSON.parse(response.body)["meta"]
+      assert_equal false, meta["success"]
+      assert_equal "Invalid email or password", meta["error"]
     end
 
     test "destroy clears the session cookie" do

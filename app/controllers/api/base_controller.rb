@@ -6,7 +6,11 @@ module Api
   #   { <resource>: ..., meta: { success: true } }
   #   { meta: { success: false, error/errors: ... } }
   class BaseController < ApplicationController
-    skip_before_action :verify_authenticity_token
+    # Bearer-token clients (MCP, external API clients) can't produce a Rails
+    # CSRF token, so they're exempted; the browser SPA's cookie-authenticated
+    # requests go through the normal check (enforced via the X-CSRF-Token
+    # header the SPA sends — see app/javascript/api/client.ts).
+    skip_before_action :verify_authenticity_token, if: -> { request.headers["Authorization"].present? }
     before_action :authenticate_request!
 
     rescue_from StandardError, with: :render_internal_server_error
@@ -59,8 +63,7 @@ module Api
     end
 
     def authenticate_via_token
-      token = request.headers["Authorization"]&.delete_prefix("Bearer ")
-      User.authenticate_by_token(token) if token.present?
+      User.authenticate_by_bearer_header(request.headers["Authorization"])
     end
 
     def authenticate_via_cookie

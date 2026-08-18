@@ -11,9 +11,9 @@ class TaskResourceTemplate < MCP::ResourceTemplate
   mime_type "application/json"
 
   def self.contents(id:, server_context: nil)
-    raise McpUnauthorizedError unless Current.user
+    McpResourceAuthorization.require_user!
 
-    task = Task.visible_to(Current.user).find_by(id: id) if id.match?(/\A\d+\z/)
+    task = Task.visible_to(Current.user).includes(:user).find_by(id: id) if id.match?(/\A\d+\z/)
     raise MCP::Server::ResourceNotFoundError.new("task://#{id}") unless task
 
     MCP::Resource::TextContents.new(

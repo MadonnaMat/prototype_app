@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
 import {
   fetchAccount,
   login as loginRequest,
@@ -35,24 +35,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setIsLoading(false))
   }, [])
 
-  async function login(data: LoginInput) {
+  const login = useCallback(async (data: LoginInput) => {
     setUser(await loginRequest(data))
-  }
+  }, [])
 
-  async function register(data: RegisterInput) {
+  const register = useCallback(async (data: RegisterInput) => {
     setUser(await registerRequest(data))
-  }
+  }, [])
 
-  async function logout() {
+  const logout = useCallback(async () => {
     await logoutRequest()
     setUser(null)
-  }
+  }, [])
 
-  return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, setUser }}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({ user, isLoading, login, register, logout, setUser }),
+    [user, isLoading, login, register, logout]
   )
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export function useAuth(): AuthContextValue {

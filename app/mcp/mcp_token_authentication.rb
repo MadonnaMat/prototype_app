@@ -11,8 +11,8 @@ class McpTokenAuthentication
   end
 
   def call(env)
-    token = Rack::Request.new(env).get_header("HTTP_AUTHORIZATION")&.delete_prefix("Bearer ")
-    Current.user = User.authenticate_by_token(token) if token.present?
+    header = Rack::Request.new(env).get_header("HTTP_AUTHORIZATION")
+    Current.user = User.authenticate_by_bearer_header(header)
     @app.call(env)
   end
 end

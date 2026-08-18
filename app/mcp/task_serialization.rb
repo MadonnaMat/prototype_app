@@ -27,7 +27,7 @@ module TaskSerialization
   # tasks) or short-circuits with not_found_response, so each tool doesn't
   # repeat the same find-then-guard pattern (mirrors Api::TasksController#set_task).
   def find_task(id)
-    task = Task.visible_to(Current.user).find_by(id: id)
+    task = Task.visible_to(Current.user).includes(:user).find_by(id: id)
     return not_found_response(id) unless task
 
     yield task
@@ -39,7 +39,7 @@ module TaskSerialization
   # not-found, since its existence is already known from list_tasks.
   def find_owned_task(id)
     find_task(id) do |task|
-      next text_response("Forbidden", error: true) unless task.user == Current.user
+      next text_response("Forbidden", error: true) unless task.owned_by?(Current.user)
 
       yield task
     end

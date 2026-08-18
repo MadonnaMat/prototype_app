@@ -27,9 +27,8 @@ module Api
     # @summary Log out
     # @response Logged out(200) [Hash{ meta: Hash{ success: Boolean } }]
     def destroy
-      Current.session ||= find_session_by_cookie
-      Current.session&.destroy
-      cookies.delete(:session_id)
+      resume_session
+      terminate_session
       render_resource
     end
 

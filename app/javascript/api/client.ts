@@ -24,12 +24,20 @@ interface ApiMeta {
   errors?: Record<string, string[]>
 }
 
+function csrfToken(): string | undefined {
+  return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content
+}
+
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   let response: Response
   try {
     response = await fetch(`/api${path}`, {
       ...options,
-      headers: { "Content-Type": "application/json", ...options.headers },
+      headers: {
+        "Content-Type": "application/json",
+        ...(csrfToken() ? { "X-CSRF-Token": csrfToken()! } : {}),
+        ...options.headers,
+      },
     })
   } catch {
     throw new ApiRequestError("Network error — please check your connection and try again.", 0)
