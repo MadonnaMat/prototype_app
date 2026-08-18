@@ -16,7 +16,7 @@ class PagesTest < ApplicationSystemTestCase
 
   test "creating a task from the list page shows a success toast" do
     visit root_path
-    click_on "New Task"
+    click_link "New Task"
 
     assert_selector "h1", text: "New task"
     fill_in "Title", with: "Walk the dog"
@@ -29,7 +29,7 @@ class PagesTest < ApplicationSystemTestCase
 
   test "backing out of a new task with no edits does not ask for confirmation" do
     visit root_path
-    click_on "New Task"
+    click_link "New Task"
 
     assert_selector "h1", text: "New task"
     click_on "Back"
@@ -39,7 +39,7 @@ class PagesTest < ApplicationSystemTestCase
 
   test "backing out of an edited form asks for confirmation before discarding" do
     visit root_path
-    click_on "New Task"
+    click_link "New Task"
 
     fill_in "Title", with: "Unsaved task"
     click_on "Back"
