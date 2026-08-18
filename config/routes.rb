@@ -8,6 +8,7 @@ Rails.application.routes.draw do
   end
 
   mount OasRails::Engine => "/docs"
+  mount McpServerBuilder.transport => "/mcp"
 
   # Render dynamic PWA files from app/views/pwa/* (remember to link manifest in application.html.erb)
   # get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
@@ -22,9 +23,10 @@ Rails.application.routes.draw do
   get "/tasks/:id/edit", to: "pages#home"
 
   # Client-side routing fallback (React Router paths like /tasks/new).
-  # Excludes /api and /docs (and their sub-paths) so unmatched requests under
-  # those prefixes still 404 normally instead of rendering the SPA shell.
+  # Excludes /api, /docs, and /mcp (and their sub-paths) so unmatched
+  # requests under those prefixes still 404/error normally instead of
+  # rendering the SPA shell.
   get "*path", to: "pages#home",
-      constraints: ->(request) { !request.path.match?(%r{\A/(api|docs)(/|\z)}) },
+      constraints: ->(request) { !request.path.match?(%r{\A/(api|docs|mcp)(/|\z)}) },
       format: false
 end
