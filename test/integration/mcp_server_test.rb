@@ -18,8 +18,23 @@ class McpServerTest < ActionDispatch::IntegrationTest
   test "list_tasks returns existing tasks" do
     result = call_tool("list_tasks", {})
     assert_not result["isError"]
-    ids = JSON.parse(result["content"].first["text"]).map { |t| t["id"] }
+    ids = JSON.parse(result["content"].first["text"])["tasks"].map { |t| t["id"] }
     assert_includes ids, @task.id
+  end
+
+  test "list_tasks paginates with limit and cursor" do
+    3.times { |i| Task.create!(title: "Paginated #{i}") }
+
+    first_page = JSON.parse(call_tool("list_tasks", { limit: 2 })["content"].first["text"])
+    assert_equal 2, first_page["tasks"].size
+    assert first_page["next_cursor"]
+
+    second_page = JSON.parse(
+      call_tool("list_tasks", { limit: 2, cursor: first_page["next_cursor"] })["content"].first["text"]
+    )
+    first_ids = first_page["tasks"].map { |t| t["id"] }
+    second_ids = second_page["tasks"].map { |t| t["id"] }
+    assert_empty first_ids & second_ids
   end
 
   test "create_task creates a task" do
@@ -31,6 +46,12 @@ class McpServerTest < ActionDispatch::IntegrationTest
 
   test "create_task with missing title returns isError" do
     result = call_tool("create_task", {})
+    assert result["isError"]
+    assert_match(/title/i, result["content"].first["text"])
+  end
+
+  test "create_task with an unrecognized argument returns isError instead of crashing" do
+    result = call_tool("create_task", { title: "New task", bogus: 1 })
     assert result["isError"]
   end
 
@@ -45,6 +66,23 @@ class McpServerTest < ActionDispatch::IntegrationTest
     assert result["isError"]
   end
 
+  test "update_task with an unrecognized argument returns isError" do
+    result = call_tool("update_task", { id: @task.id, bogus: 1 })
+    assert result["isError"]
+  end
+
+  test "update_task on a concurrently modified task returns isError instead of a false success" do
+    stale_task = Task.find(@task.id)
+    Task.where(id: @task.id).update_all("lock_version = lock_version + 1")
+
+    result = Task.stub(:find_by, stale_task) do
+      call_tool("update_task", { id: @task.id, title: "Racing update" })
+    end
+
+    assert result["isError"]
+    assert_not_equal "Racing update", Task.find(@task.id).title
+  end
+
   test "complete_task marks a task done" do
     result = call_tool("complete_task", { id: @task.id })
     assert_not result["isError"]
@@ -53,6 +91,11 @@ class McpServerTest < ActionDispatch::IntegrationTest
 
   test "complete_task with unknown id returns isError" do
     result = call_tool("complete_task", { id: -1 })
+    assert result["isError"]
+  end
+
+  test "complete_task with a non-integer id returns isError" do
+    result = call_tool("complete_task", { id: "abc" })
     assert result["isError"]
   end
 

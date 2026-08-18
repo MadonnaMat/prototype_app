@@ -5,21 +5,59 @@ module TaskSerialization
     task.as_json(only: Task::API_ATTRIBUTES)
   end
 
+  def text_response(text, error: false)
+    MCP::Tool::Response.new([ { type: "text", text: text } ], error: error)
+  end
+
   def not_found_response(id)
-    MCP::Tool::Response.new([ { type: "text", text: "Task #{id} not found" } ], error: true)
+    text_response("Task #{id} not found", error: true)
+  end
+
+  def list_response(tasks, next_cursor: nil)
+    payload = { tasks: tasks.map { |task| task_json(task) } }
+    payload[:next_cursor] = next_cursor if next_cursor
+    text_response(payload.to_json)
+  end
+
+  def deleted_response(id)
+    text_response({ id: id, deleted: true }.to_json)
+  end
+
+  # Shared by update/complete/delete: looks up the task or short-circuits
+  # with not_found_response, so each tool doesn't repeat the same
+  # find-then-guard pattern (mirrors Api::BaseController#set_task).
+  def find_task(id)
+    task = Task.find_by(id: id)
+    return not_found_response(id) unless task
+
+    yield task
   end
 
   # Shared by create/update/complete: each calls task.save or task.update
-  # first (populating task.errors on failure), then hands the task here.
-  # Avoids repeating the same success/validation-error branch three times.
-  def persist_response(task)
-    if task.errors.empty?
-      MCP::Tool::Response.new([ { type: "text", text: task_json(task).to_json } ])
+  # first and passes along the resulting boolean as `success`, rather than
+  # inferring it from task.errors.empty? (which is also true for a task
+  # that was never saved/updated at all, e.g. a future before_save callback
+  # that throws :abort without adding to errors).
+  def persist_response(task, success)
+    if success
+      text_response(task_json(task).to_json)
     else
-      MCP::Tool::Response.new(
-        [ { type: "text", text: task.errors.full_messages.join(", ") } ],
-        error: true,
-      )
+      text_response(task.errors.full_messages.join(", "), error: true)
     end
+  end
+
+  # Wraps a tool's `.call` body so any unhandled exception becomes a normal
+  # MCP error response instead of propagating out of the mounted transport,
+  # which (unlike Api::BaseController) has no rescue_from safety net of its
+  # own. Mirrors Api::BaseController#render_error: message always included,
+  # backtrace only in Rails.env.local? so nothing leaks in production.
+  def rescue_errors
+    yield
+  rescue ActiveRecord::StaleObjectError
+    text_response("Task was modified or deleted by another request; please retry.", error: true)
+  rescue StandardError => e
+    text = e.message
+    text += "\n#{e.backtrace.join("\n")}" if Rails.env.local?
+    text_response(text, error: true)
   end
 end

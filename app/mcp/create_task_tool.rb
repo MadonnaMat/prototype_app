@@ -9,11 +9,14 @@ class CreateTaskTool < MCP::Tool
       done: { type: "boolean" }
     },
     required: [ "title" ],
+    additionalProperties: false,
   )
 
-  def self.call(title:, server_context:, description: nil, done: false)
-    task = Task.new(title: title, description: description, done: done)
-    task.save
-    TaskSerialization.persist_response(task)
+  def self.call(title:, server_context:, description: nil, done: false, **)
+    TaskSerialization.rescue_errors do
+      task = Task.new(title: title, description: description, done: done)
+      success = task.save
+      TaskSerialization.persist_response(task, success)
+    end
   end
 end
