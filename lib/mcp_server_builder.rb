@@ -33,7 +33,15 @@ class McpServerBuilder
               "WEB_CONCURRENCY=#{workers.inspect}."
       end
 
-      MCP::Server::Transports::StreamableHTTPTransport.new(server, enable_json_response: true)
+      streamable_transport = MCP::Server::Transports::StreamableHTTPTransport.new(server, enable_json_response: true)
+
+      # Wraps the transport with token authentication (see
+      # McpTokenAuthentication) so every tool call and resource read is
+      # gated the same way the JSON API is gated.
+      Rack::Builder.new do
+        use McpTokenAuthentication
+        run streamable_transport
+      end.to_app
     end
 
     def server
@@ -48,6 +56,8 @@ class McpServerBuilder
           CompleteTaskTool,
           DeleteTaskTool
         ],
+        resources: [ TasksResource ],
+        resource_templates: [ TaskResourceTemplate ],
       )
     end
   end

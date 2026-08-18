@@ -18,3 +18,10 @@ three:
   done: false
   user: two
   is_public: true
+
+four:
+  title: Bob's private notes
+  description: Not for anyone else's eyes.
+  done: false
+  user: two
+  is_public: false

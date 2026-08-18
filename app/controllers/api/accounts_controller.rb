@@ -1,5 +1,5 @@
 module Api
-  class AccountController < Api::BaseController
+  class AccountsController < Api::BaseController
     # @summary Get the current account
     # @response Account(200) [Hash{ user: Hash{ id: !Integer, username: !String, email_address: !String, api_token: !String }, meta: Hash{ success: Boolean } }]
     def show
