@@ -6,6 +6,6 @@ class ListTasksTool < MCP::Tool
 
   def self.call(server_context:)
     tasks = Task.all.map { |t| TaskSerialization.task_json(t) }
-    MCP::Tool::Response.new([{ type: "text", text: tasks.to_json }])
+    MCP::Tool::Response.new([ { type: "text", text: tasks.to_json } ])
   end
 end

@@ -7,9 +7,9 @@ class UpdateTaskTool < MCP::Tool
       id: { type: "integer" },
       title: { type: "string" },
       description: { type: "string" },
-      done: { type: "boolean" },
+      done: { type: "boolean" }
     },
-    required: ["id"],
+    required: [ "id" ],
   )
 
   def self.call(id:, server_context:, **attrs)

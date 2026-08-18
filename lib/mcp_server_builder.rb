@@ -33,7 +33,7 @@ class McpServerBuilder
           CreateTaskTool,
           UpdateTaskTool,
           CompleteTaskTool,
-          DeleteTaskTool,
+          DeleteTaskTool
         ],
       )
     end

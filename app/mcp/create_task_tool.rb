@@ -6,9 +6,9 @@ class CreateTaskTool < MCP::Tool
     properties: {
       title: { type: "string" },
       description: { type: "string" },
-      done: { type: "boolean" },
+      done: { type: "boolean" }
     },
-    required: ["title"],
+    required: [ "title" ],
   )
 
   def self.call(title:, server_context:, description: nil, done: false)

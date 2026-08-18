@@ -4,8 +4,8 @@ class McpServerTest < ActionDispatch::IntegrationTest
   setup do
     @task = tasks(:one)
     host! "localhost" # Rails' integration test default Host is www.example.com,
-                       # which the transport's loopback-only DNS-rebinding
-                       # allowlist rejects — must explicitly use localhost.
+    # which the transport's loopback-only DNS-rebinding
+    # allowlist rejects — must explicitly use localhost.
     @session_id = initialize_mcp_session
   end
 
@@ -74,7 +74,7 @@ class McpServerTest < ActionDispatch::IntegrationTest
     post "/mcp",
       params: {
         jsonrpc: "2.0", id: 1, method: "initialize",
-        params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "test", version: "0" } },
+        params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "test", version: "0" } }
       }.to_json,
       headers: { "Content-Type" => "application/json", "Accept" => "application/json, text/event-stream" }
     assert_response :success
@@ -87,7 +87,7 @@ class McpServerTest < ActionDispatch::IntegrationTest
       headers: {
         "Content-Type" => "application/json",
         "Accept" => "application/json, text/event-stream",
-        "Mcp-Session-Id" => @session_id,
+        "Mcp-Session-Id" => @session_id
       }
   end
 
