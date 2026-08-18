@@ -18,6 +18,8 @@ gem "jbuilder"
 gem "oas_rails"
 # Handle Cross-Origin Resource Sharing, needed for RapiDoc's "try it out" requests [https://github.com/cyu/rack-cors]
 gem "rack-cors"
+# Expose app data/actions to LLM clients over MCP (Model Context Protocol) [https://github.com/modelcontextprotocol/ruby-sdk]
+gem "mcp"
 
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 # gem "bcrypt", "~> 3.1.7"
