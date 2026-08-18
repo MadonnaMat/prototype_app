@@ -9,16 +9,21 @@ describe("TaskForm", () => {
     expect(screen.getByLabelText("Title")).toHaveValue("")
     expect(screen.getByLabelText("Description")).toHaveValue("")
     expect(screen.getByRole("checkbox", { name: "Completed" })).not.toBeChecked()
+    expect(screen.getByRole("checkbox", { name: "Public (visible to everyone)" })).not.toBeChecked()
   })
 
   it("prefills fields from initialValues", () => {
     render(
-      <TaskForm initialValues={{ title: "Existing", description: "Some notes", done: true }} onSubmit={vi.fn()} />
+      <TaskForm
+        initialValues={{ title: "Existing", description: "Some notes", done: true, is_public: true }}
+        onSubmit={vi.fn()}
+      />
     )
 
     expect(screen.getByLabelText("Title")).toHaveValue("Existing")
     expect(screen.getByLabelText("Description")).toHaveValue("Some notes")
     expect(screen.getByRole("checkbox", { name: "Completed" })).toBeChecked()
+    expect(screen.getByRole("checkbox", { name: "Public (visible to everyone)" })).toBeChecked()
   })
 
   it("calls onSubmit with the current field values", () => {
@@ -34,6 +39,7 @@ describe("TaskForm", () => {
       title: "New title",
       description: "New description",
       done: true,
+      is_public: false,
     })
   })
 

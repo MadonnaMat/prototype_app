@@ -5,6 +5,11 @@ Rails.application.routes.draw do
 
   namespace :api do
     resources :tasks
+    resource :session, only: %i[create destroy]
+    resource :registration, only: :create
+    resource :account, only: %i[show update] do
+      post :regenerate_token
+    end
   end
 
   mount OasRails::Engine => "/docs"

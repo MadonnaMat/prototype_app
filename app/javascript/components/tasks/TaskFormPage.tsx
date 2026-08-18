@@ -5,8 +5,19 @@ import { useTaskFormController } from "./useTaskFormController"
 export function TaskFormPage() {
   const { id } = useParams<{ id?: string }>()
   const navigate = useNavigate()
-  const { isReady, notFound, loadError, initialValues, onSubmit, isSubmitting, fieldErrors, submitError } =
+  const { isReady, notFound, loadError, isForbidden, initialValues, onSubmit, isSubmitting, fieldErrors, submitError } =
     useTaskFormController(id)
+
+  if (isForbidden) {
+    return (
+      <div className="mx-auto max-w-lg p-4">
+        <p className="mb-4">This task belongs to someone else and can&apos;t be edited.</p>
+        <Link to="/" className="text-primary underline-offset-4 hover:underline">
+          Back to tasks
+        </Link>
+      </div>
+    )
+  }
 
   if (notFound) {
     return (

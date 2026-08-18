@@ -3,6 +3,7 @@ import { toast } from "sonner"
 import { useTaskQuery } from "@/hooks/useTaskQueries"
 import { useCreateTaskMutation, useUpdateTaskMutation } from "@/hooks/useTaskMutations"
 import { useSsrData } from "@/src/TaskApp/routes/ssr-data-context"
+import { useAuth } from "@/contexts/AuthContext"
 import { ApiValidationError, ApiRequestError } from "@/api/client"
 import type { Task, TaskInput } from "@/api/tasks"
 
@@ -19,14 +20,28 @@ function classifyLoadError(isError: boolean, error: unknown) {
   return { notFound, loadError: !notFound }
 }
 
+// The server allows GET on any visible (owned-or-public) task, so a foreign
+// public task's edit page would otherwise render fully editable and only
+// fail once the user tries to save (403). Gate it upfront too — this route
+// only ever mounts under RequireAuth, so `user` is already resolved by the
+// time we get here, but guard authLoading anyway so an own task can't
+// briefly flash forbidden while `user` is still null.
+function isForeignTask(taskReady: boolean, authLoading: boolean, task: Task | undefined, username: string | undefined) {
+  if (!taskReady || authLoading) return false
+  return task?.owner_username !== username
+}
+
 export function useTaskFormController(id?: string) {
   const isEdit = id !== undefined
   const { initialTask } = useSsrData()
+  const { user, isLoading: authLoading } = useAuth()
   const taskQuery = useTaskQuery(id ?? "", ssrInitialDataFor(id, initialTask))
   const createMutation = useCreateTaskMutation()
   const updateMutation = useUpdateTaskMutation()
   const navigate = useNavigate()
   const mutation = isEdit ? updateMutation : createMutation
+  const taskReady = isEdit && taskQuery.isSuccess
+  const isForbidden = isForeignTask(taskReady, authLoading, taskQuery.data, user?.username)
 
   function onSubmit(values: TaskInput) {
     const onSuccess = () => {
@@ -43,9 +58,10 @@ export function useTaskFormController(id?: string) {
   const { notFound, loadError } = classifyLoadError(isEdit && taskQuery.isError, taskQuery.error)
 
   return {
-    isReady: !isEdit || taskQuery.isSuccess,
+    isReady: !isEdit || taskReady,
     notFound,
     loadError,
+    isForbidden,
     initialValues: isEdit ? taskQuery.data : undefined,
     onSubmit,
     isSubmitting: mutation.isPending,

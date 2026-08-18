@@ -2,7 +2,7 @@ module TaskSerialization
   module_function
 
   def task_json(task)
-    task.as_json(only: Task::API_ATTRIBUTES)
+    task.as_json(only: Task::API_ATTRIBUTES).merge(owner_username: task.user.username)
   end
 
   def text_response(text, error: false)
@@ -23,14 +23,26 @@ module TaskSerialization
     text_response({ id: id, deleted: true }.to_json)
   end
 
-  # Shared by update/complete/delete: looks up the task or short-circuits
-  # with not_found_response, so each tool doesn't repeat the same
-  # find-then-guard pattern (mirrors Api::BaseController#set_task).
+  # Looks up a task the current user can see (own tasks + everyone's public
+  # tasks) or short-circuits with not_found_response, so each tool doesn't
+  # repeat the same find-then-guard pattern (mirrors Api::TasksController#set_task).
   def find_task(id)
-    task = Task.find_by(id: id)
+    task = Task.visible_to(Current.user).includes(:user).find_by(id: id)
     return not_found_response(id) unless task
 
     yield task
+  end
+
+  # Shared by update/complete/delete: like find_task, but the task must
+  # also be owned by the current user — a visible-but-not-owned task
+  # (someone else's public task) is a distinct "Forbidden" rather than
+  # not-found, since its existence is already known from list_tasks.
+  def find_owned_task(id)
+    find_task(id) do |task|
+      next text_response("Forbidden", error: true) unless task.owned_by?(Current.user)
+
+      yield task
+    end
   end
 
   # Shared by create/update/complete: each calls task.save or task.update
@@ -52,6 +64,8 @@ module TaskSerialization
   # own. Mirrors Api::BaseController#render_error: message always included,
   # backtrace only in Rails.env.local? so nothing leaks in production.
   def rescue_errors
+    return text_response("Unauthorized", error: true) unless Current.user
+
     yield
   rescue ActiveRecord::StaleObjectError
     text_response("Task was modified or deleted by another request; please retry.", error: true)

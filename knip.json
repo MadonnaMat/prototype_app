@@ -9,6 +9,7 @@
   ],
   "project": ["app/javascript/**/*.{ts,tsx}"],
   "ignoreDependencies": [
+    "@modelcontextprotocol/inspector",
     "@rspack/cli",
     "@rspack/core",
     "@rspack/dev-server",

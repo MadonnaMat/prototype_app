@@ -40,7 +40,8 @@
     "build:css": "tailwindcss -i ./app/assets/stylesheets/application.tailwind.css -o ./app/assets/builds/application.css --minify",
     "build:test": "RAILS_ENV=test NODE_ENV=test bin/shakapacker-precompile-hook && SHAKAPACKER_SKIP_PRECOMPILE_HOOK=true RAILS_ENV=test NODE_ENV=test bin/shakapacker",
     "types:api": "bin/rails oas_rails:export && openapi-typescript tmp/docs.json -o app/javascript/types/api.ts",
-    "mcp:inspector": "mcp-inspector --catalog mcp-inspector.json"
+    "mcp:inspector": "bin/mcp-inspector",
+    "mcp:inspector:cli": "bin/mcp-inspector --cli"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

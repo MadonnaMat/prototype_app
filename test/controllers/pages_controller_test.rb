@@ -1,16 +1,45 @@
 require "test_helper"
 
 class PagesControllerTest < ActionDispatch::IntegrationTest
-  test "home renders successfully" do
+  setup do
+    @user = users(:one)
+  end
+
+  def sign_in_as(user)
+    session = user.sessions.create!
+    ActionDispatch::TestRequest.create.cookie_jar.tap do |cookie_jar|
+      cookie_jar.signed[:session_id] = session.id
+      cookies["session_id"] = cookie_jar[:session_id]
+    end
+  end
+
+  test "home renders successfully when signed out" do
     get root_url
     assert_response :success
   end
 
-  test "home seeds initialTasks with the full task list" do
+  test "home does not seed any task data when signed out" do
     get root_url
     assert_response :success
-    assert_includes response.body, tasks(:one).title
-    assert_includes response.body, tasks(:two).title
+    assert_no_match(/"initialTasks"/, response.body)
+    assert_no_match(/#{Regexp.escape(tasks(:one).title)}/, response.body)
+  end
+
+  test "home seeds initialTasks scoped to what the signed-in user can see" do
+    sign_in_as(@user)
+    get root_url
+    assert_response :success
+    assert_includes response.body, tasks(:one).title # own task
+    assert_includes response.body, tasks(:three).title # someone else's public task
+    assert_no_match(/#{Regexp.escape(tasks(:four).title)}/, response.body) # someone else's private task
+  end
+
+  test "home seeds initialTasks with owner_username on each task" do
+    sign_in_as(@user)
+    get root_url
+    assert_response :success
+    assert_includes response.body, "owner_username"
+    assert_includes response.body, tasks(:three).user.username
   end
 
   test "catch-all route renders the SPA shell for /tasks/new" do
@@ -18,13 +47,28 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  test "catch-all route renders the SPA shell for /tasks/:id/edit and seeds initialTask" do
+  test "catch-all route seeds initialTask when signed in and the task is visible" do
+    sign_in_as(@user)
     get "/tasks/#{tasks(:one).id}/edit"
     assert_response :success
     assert_includes response.body, tasks(:one).title
   end
 
+  test "catch-all route does not seed initialTask when signed out" do
+    get "/tasks/#{tasks(:one).id}/edit"
+    assert_response :success
+    assert_no_match(/"initialTask"/, response.body)
+  end
+
+  test "catch-all route does not seed initialTask for someone else's private task" do
+    sign_in_as(@user)
+    get "/tasks/#{tasks(:four).id}/edit"
+    assert_response :success
+    assert_no_match(/"initialTask"/, response.body)
+  end
+
   test "catch-all route renders successfully for a nonexistent task id without an initialTask prop" do
+    sign_in_as(@user)
     get "/tasks/999999/edit"
     assert_response :success
     assert_no_match(/"initialTask"/, response.body)

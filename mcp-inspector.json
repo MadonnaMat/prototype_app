@@ -3,7 +3,10 @@
     "prototype-app": {
       "type": "streamable-http",
       "url": "http://localhost:3000/mcp",
-      "paginatedLists": true
+      "paginatedLists": true,
+      "headers": {
+        "Authorization": "Bearer <paste your account's API token here>"
+      }
     },
     "filesystem-server-default": {
       "type": "stdio",

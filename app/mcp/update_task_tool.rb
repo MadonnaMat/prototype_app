@@ -4,10 +4,11 @@ class UpdateTaskTool < MCP::Tool
   description "Update an existing task's title, description, and/or done state."
   input_schema(
     properties: {
-      id: { type: "integer" },
+      id: { type: "integer", minimum: 1 },
       title: { type: "string" },
       description: { type: "string" },
-      done: { type: "boolean" }
+      done: { type: "boolean" },
+      is_public: { type: "boolean" }
     },
     required: [ "id" ],
     additionalProperties: false,
@@ -15,8 +16,8 @@ class UpdateTaskTool < MCP::Tool
 
   def self.call(id:, server_context:, **attrs)
     TaskSerialization.rescue_errors do
-      TaskSerialization.find_task(id) do |task|
-        success = task.update(attrs.slice(:title, :description, :done))
+      TaskSerialization.find_owned_task(id) do |task|
+        success = task.update(attrs.slice(:title, :description, :done, :is_public))
         TaskSerialization.persist_response(task, success)
       end
     end

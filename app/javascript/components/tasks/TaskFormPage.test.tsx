@@ -33,7 +33,16 @@ describe("TaskFormPage", () => {
         capturedBody = await request.json()
         return HttpResponse.json(
           {
-            task: { id: 42, title: "Fresh task", description: "", done: false, created_at: "", updated_at: "" },
+            task: {
+              id: 42,
+              title: "Fresh task",
+              description: "",
+              done: false,
+              is_public: false,
+              owner_username: "testuser",
+              created_at: "",
+              updated_at: "",
+            },
             meta: { success: true },
           },
           { status: 201 }
@@ -46,7 +55,9 @@ describe("TaskFormPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create task" }))
 
     await waitFor(() =>
-      expect(capturedBody).toEqual({ task: { title: "Fresh task", description: "", done: false } })
+      expect(capturedBody).toEqual({
+        task: { title: "Fresh task", description: "", done: false, is_public: false },
+      })
     )
   })
 

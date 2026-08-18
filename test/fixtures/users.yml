@@ -1,0 +1,13 @@
+<% password_digest = BCrypt::Password.create("password") %>
+
+one:
+  username: alice
+  email_address: one@example.com
+  password_digest: <%= password_digest %>
+  api_token_digest: <%= User.digest_token("test-token-one") %>
+
+two:
+  username: bob
+  email_address: two@example.com
+  password_digest: <%= password_digest %>
+  api_token_digest: <%= User.digest_token("test-token-two") %>
