@@ -83,7 +83,7 @@ end
 gem "cssbundling-rails", "~> 1.4"
 
 # SSR + hydration for the React frontend [https://github.com/shakacode/react_on_rails]
-gem "react_on_rails", "= 17.0"
+gem "react_on_rails", "17.0.1"
 
 # >= 10.3.1, not "= 10.3" (10.3.0): DevServerProxy in 10.3.0 relies on rack-proxy's old
 # implicit Host-derived backend resolution, which rack-proxy now refuses by default as an
