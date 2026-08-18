@@ -7,16 +7,16 @@ import { buildTask } from "@/test/msw/handlers"
 import { TaskRow } from "./TaskRow"
 
 describe("TaskRow", () => {
-  it("renders the task title as a link to its edit page", () => {
+  it("renders the task title as a link to its edit page", async () => {
     renderWithProviders(<TaskRow task={buildTask({ id: 3, title: "Buy groceries" })} />)
 
-    expect(screen.getByRole("link", { name: "Buy groceries" })).toHaveAttribute("href", "/tasks/3/edit")
+    expect(await screen.findByRole("link", { name: "Buy groceries" })).toHaveAttribute("href", "/tasks/3/edit")
   })
 
-  it("shows the title with a strikethrough style when done", () => {
+  it("shows the title with a strikethrough style when done", async () => {
     renderWithProviders(<TaskRow task={buildTask({ done: true, title: "Done task" })} />)
 
-    expect(screen.getByRole("link", { name: "Done task" })).toHaveClass("line-through")
+    expect(await screen.findByRole("link", { name: "Done task" })).toHaveClass("line-through")
   })
 
   it("calls the update endpoint with the toggled done state when the checkbox is clicked", async () => {
@@ -31,6 +31,7 @@ describe("TaskRow", () => {
       })
     )
     renderWithProviders(<TaskRow task={buildTask({ id: 1, title: "Toggle me", description: "", done: false })} />)
+    await waitFor(() => expect(screen.getByRole("checkbox")).toBeEnabled())
 
     fireEvent.click(screen.getByRole("checkbox"))
 
@@ -41,10 +42,10 @@ describe("TaskRow", () => {
     )
   })
 
-  it("renders a delete trigger for the task", () => {
+  it("renders a delete trigger for the task", async () => {
     renderWithProviders(<TaskRow task={buildTask({ title: "Deletable" })} />)
 
-    expect(screen.getByRole("button", { name: 'Delete "Deletable"' })).toBeInTheDocument()
+    expect(await screen.findByRole("button", { name: 'Delete "Deletable"' })).toBeInTheDocument()
   })
 
   it("does not show an owner badge for the current user's own task", async () => {
@@ -67,7 +68,7 @@ describe("TaskRow", () => {
     await waitFor(() => expect(screen.getByText("from: bob")).toBeInTheDocument())
     expect(screen.queryByRole("link", { name: "Not mine" })).not.toBeInTheDocument()
     expect(screen.getByText("Not mine")).toBeInTheDocument()
-    expect(screen.getByRole("checkbox")).toBeDisabled()
+    expect(screen.getByRole("checkbox")).toHaveAttribute("aria-disabled", "true")
     expect(screen.queryByRole("button", { name: 'Delete "Not mine"' })).not.toBeInTheDocument()
   })
 })
