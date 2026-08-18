@@ -3,6 +3,8 @@ import { QueryClientProvider } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { createQueryClient } from "@/lib/query-client"
 import { Toaster } from "@/components/ui/sonner"
+import { AuthProvider } from "@/contexts/AuthContext"
+import { AppHeader } from "@/components/layout/AppHeader"
 import { SsrDataContext, type SsrData } from "./routes/ssr-data-context"
 import { AppRoutes } from "./routes/AppRoutes"
 
@@ -26,9 +28,12 @@ export function TaskApp(props: TaskAppProps) {
   return (
     <QueryClientProvider client={queryClient}>
       <SsrDataContext.Provider value={props}>
-        <AppRoutes />
-        <Toaster />
-        {isHydrated && process.env.NODE_ENV !== "production" && <ReactQueryDevtools initialIsOpen={false} />}
+        <AuthProvider>
+          <AppHeader />
+          <AppRoutes />
+          <Toaster />
+          {isHydrated && process.env.NODE_ENV !== "production" && <ReactQueryDevtools initialIsOpen={false} />}
+        </AuthProvider>
       </SsrDataContext.Provider>
     </QueryClientProvider>
   )

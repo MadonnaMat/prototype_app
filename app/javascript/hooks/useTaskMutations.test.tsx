@@ -13,6 +13,8 @@ const seedTask: Task = {
   title: "Old title",
   description: "",
   done: false,
+  is_public: false,
+  owner_username: "testuser",
   created_at: "",
   updated_at: "",
 }

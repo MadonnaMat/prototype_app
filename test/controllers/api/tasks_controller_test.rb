@@ -9,7 +9,7 @@ module Api
     end
 
     test "unexpected error returns 500 as json" do
-      Task.stub(:visible_to, -> (*) { raise StandardError, "boom" }) do
+      Task.stub(:visible_to, ->(*) { raise StandardError, "boom" }) do
         get api_tasks_url, headers: @auth_headers, as: :json
       end
       assert_response :internal_server_error

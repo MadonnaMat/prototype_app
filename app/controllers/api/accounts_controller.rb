@@ -1,14 +1,14 @@
 module Api
   class AccountsController < Api::BaseController
     # @summary Get the current account
-    # @response Account(200) [Hash{ user: Hash{ id: !Integer, username: !String, email_address: !String, api_token: !String }, meta: Hash{ success: Boolean } }]
+    # @response Account(200) [Hash{ user: Hash{ id: !Integer, username: !String, email_address: !String, api_token: String }, meta: Hash{ success: Boolean } }]
     def show
       render_resource(user: user_json(Current.user))
     end
 
     # @summary Update the current account
     # @request_body Account attributes [Hash{ username: String }]
-    # @response Updated(200) [Hash{ user: Hash{ id: !Integer, username: !String, email_address: !String, api_token: !String }, meta: Hash{ success: Boolean } }]
+    # @response Updated(200) [Hash{ user: Hash{ id: !Integer, username: !String, email_address: !String, api_token: String }, meta: Hash{ success: Boolean } }]
     # @response Validation error(422) [Hash{ meta: Hash{ success: Boolean, errors: Hash{ username: Array<String> } } }]
     def update
       if Current.user.update(account_params)

@@ -35,7 +35,9 @@ describe("TaskRow", () => {
     fireEvent.click(screen.getByRole("checkbox"))
 
     await waitFor(() =>
-      expect(capturedBody).toEqual({ task: { title: "Toggle me", description: "", done: true } })
+      expect(capturedBody).toEqual({
+        task: { title: "Toggle me", description: "", done: true, is_public: false },
+      })
     )
   })
 
@@ -43,5 +45,29 @@ describe("TaskRow", () => {
     renderWithProviders(<TaskRow task={buildTask({ title: "Deletable" })} />)
 
     expect(screen.getByRole("button", { name: 'Delete "Deletable"' })).toBeInTheDocument()
+  })
+
+  it("does not show an owner badge for the current user's own task", async () => {
+    renderWithProviders(<TaskRow task={buildTask({ owner_username: "testuser" })} />)
+
+    await waitFor(() => expect(screen.queryByText(/from:/)).not.toBeInTheDocument())
+  })
+
+  it("shows a 'from' badge for someone else's public task", async () => {
+    renderWithProviders(<TaskRow task={buildTask({ is_public: true, owner_username: "bob" })} />)
+
+    await waitFor(() => expect(screen.getByText("from: bob")).toBeInTheDocument())
+  })
+
+  it("renders someone else's public task as read-only, with no edit link or delete/toggle controls", async () => {
+    renderWithProviders(
+      <TaskRow task={buildTask({ title: "Not mine", is_public: true, owner_username: "bob" })} />
+    )
+
+    await waitFor(() => expect(screen.getByText("from: bob")).toBeInTheDocument())
+    expect(screen.queryByRole("link", { name: "Not mine" })).not.toBeInTheDocument()
+    expect(screen.getByText("Not mine")).toBeInTheDocument()
+    expect(screen.getByRole("checkbox")).toBeDisabled()
+    expect(screen.queryByRole("button", { name: 'Delete "Not mine"' })).not.toBeInTheDocument()
   })
 })

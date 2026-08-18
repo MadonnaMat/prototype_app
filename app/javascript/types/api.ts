@@ -11,7 +11,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List all tasks */
+        /** List tasks visible to the current user */
         get: operations["GET_api_tasks"];
         put?: never;
         /** Create a task */
@@ -42,16 +42,89 @@ export interface paths {
         patch: operations["PATCH_api_tasks_id"];
         trace?: never;
     };
+    "/api/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Log in */
+        post: operations["POST_api_session"];
+        /** Log out */
+        delete: operations["DELETE_api_session"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/registration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register a new account */
+        post: operations["POST_api_registration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/account/regenerate_token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Regenerate the current account's API token */
+        post: operations["POST_api_account_regenerate_token"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the current account */
+        get: operations["GET_api_account"];
+        /** Update the current account */
+        put: operations["PUT_api_account"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update the current account */
+        patch: operations["PATCH_api_account"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        d7b748f0194a5601d4c18199b51c1aed: {
+        "57a3e55829f2b0d5d58a9fda5cf1e411": {
             tasks?: {
                 id: number;
                 title: string;
                 description?: string;
                 done: boolean;
+                is_public: boolean;
+                owner_username: string;
                 created_at: string;
                 updated_at: string;
             }[];
@@ -59,17 +132,20 @@ export interface components {
                 success?: boolean;
             };
         };
-        "11cac7a528631363425253e40126403f": {
+        fa6e6c4e31f58be39f49a6db42b2f3f9: {
             title: string;
             description?: string;
             done?: boolean;
+            is_public?: boolean;
         };
-        ce06eac03082560b848f48811a994fa2: {
+        abc706a73a69306d04b70067759cf5cc: {
             task?: {
                 id: number;
                 title: string;
                 description?: string;
                 done: boolean;
+                is_public: boolean;
+                owner_username: string;
                 created_at: string;
                 updated_at: string;
             };
@@ -95,34 +171,78 @@ export interface components {
             status: number;
             error?: string;
         };
-        "741e9e109aca798e3b547796273eebc5": {
+        "3be98a04af300e34c60ac4d293ee5744": {
             title?: string;
             description?: string;
             done?: boolean;
+            is_public?: boolean;
         };
         f4f91fa9e30496301c6f992a9102b1ae: {
             meta?: {
                 success?: boolean;
             };
         };
+        "870d9a171fb186bf08504662107b6907": {
+            email_address: string;
+            password: string;
+        };
+        "918995bc56f576dabf9ad32fab90f70f": {
+            user?: {
+                id: number;
+                username: string;
+                email_address: string;
+                api_token?: string;
+            };
+            meta?: {
+                success?: boolean;
+            };
+        };
+        "4ef4a99e1db3e42a1d9eb69ba020e431": {
+            username: string;
+            email_address: string;
+            password: string;
+            password_confirmation?: string;
+        };
+        f60758796e1391338670246b26a48bc1: {
+            user?: {
+                id: number;
+                username: string;
+                email_address: string;
+                api_token: string;
+            };
+            meta?: {
+                success?: boolean;
+            };
+        };
+        "8c7f1e5e46ffbd2bdb250ca9733e45c6": {
+            meta?: {
+                success?: boolean;
+                errors?: {
+                    username?: string[];
+                };
+            };
+        };
+        "06e6e9ad3b5f6618a38c034c25bd0e68": {
+            username?: string;
+        };
     };
     responses: {
         /** @description Tasks */
-        bb7d421ffcb3fe75e4727bfce51f5bf9: {
+        bf06cd6e060e02c0adbf2c563ba5f63a: {
             headers: {
                 [name: string]: unknown;
             };
             content: {
-                "application/json": components["schemas"]["d7b748f0194a5601d4c18199b51c1aed"];
+                "application/json": components["schemas"]["57a3e55829f2b0d5d58a9fda5cf1e411"];
             };
         };
         /** @description Created */
-        "48c8ad2bbd92443ef0c972d2c7d47273": {
+        "5db4ac33b6ca0f2cee2479b8014c253e": {
             headers: {
                 [name: string]: unknown;
             };
             content: {
-                "application/json": components["schemas"]["ce06eac03082560b848f48811a994fa2"];
+                "application/json": components["schemas"]["abc706a73a69306d04b70067759cf5cc"];
             };
         };
         /** @description Validation error */
@@ -144,12 +264,12 @@ export interface components {
             };
         };
         /** @description Task found */
-        "8c5011d3bab8f49d3873a0db6638ced0": {
+        "6107dae5839af589b4efb5bf6c91dc24": {
             headers: {
                 [name: string]: unknown;
             };
             content: {
-                "application/json": components["schemas"]["ce06eac03082560b848f48811a994fa2"];
+                "application/json": components["schemas"]["abc706a73a69306d04b70067759cf5cc"];
             };
         };
         /** @description Not found */
@@ -162,12 +282,21 @@ export interface components {
             };
         };
         /** @description Updated */
-        f8d073d2a50a96227321f14aadbd1efd: {
+        "189fe611a9a8af3090ea53a158aa264b": {
             headers: {
                 [name: string]: unknown;
             };
             content: {
-                "application/json": components["schemas"]["ce06eac03082560b848f48811a994fa2"];
+                "application/json": components["schemas"]["abc706a73a69306d04b70067759cf5cc"];
+            };
+        };
+        /** @description Not owned */
+        "70551adacd134cfc98512370b782c82b": {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["72f4773c6fe1f3543838bae1153a75ce"];
             };
         };
         /** @description Deleted */
@@ -179,6 +308,96 @@ export interface components {
                 "application/json": components["schemas"]["f4f91fa9e30496301c6f992a9102b1ae"];
             };
         };
+        /** @description Logged out */
+        f083757c3185154225b449cd7d64121a: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["f4f91fa9e30496301c6f992a9102b1ae"];
+            };
+        };
+        /** @description The requested resource could not be found. */
+        f61607a45fa5b0e25d0d160f2c121c73: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["c05b3ceb32406df5ef17ddbd369eaef6"];
+            };
+        };
+        /** @description Logged in */
+        "8dd0b88837d79388e991428fa339ac8f": {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["918995bc56f576dabf9ad32fab90f70f"];
+            };
+        };
+        /** @description Invalid credentials */
+        a9adb6e891fb8cd1a0335a9abea3ad2a: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["72f4773c6fe1f3543838bae1153a75ce"];
+            };
+        };
+        /** @description The server could not process the request due to semantic errors. Please check your input and try again. */
+        "782d73e2a3a6a67c78cce51aaa36437f": {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["c05b3ceb32406df5ef17ddbd369eaef6"];
+            };
+        };
+        /** @description Registered */
+        ef0961b3b5ba625f5604bc727f172391: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["f60758796e1391338670246b26a48bc1"];
+            };
+        };
+        /** @description Validation error */
+        "38bf55bf2316ec84ba30471b38ca2474": {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["8c7f1e5e46ffbd2bdb250ca9733e45c6"];
+            };
+        };
+        /** @description Regenerated */
+        "73a5a6b38eba050c51620ce156bfc284": {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["f60758796e1391338670246b26a48bc1"];
+            };
+        };
+        /** @description Account */
+        "0a0e12e4293be22c445d2638dafb123d": {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["918995bc56f576dabf9ad32fab90f70f"];
+            };
+        };
+        /** @description Updated */
+        d5bf93f88f6be76863a92dac6d6208e1: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["918995bc56f576dabf9ad32fab90f70f"];
+            };
+        };
     };
     parameters: {
         /** @description The task ID */
@@ -186,15 +405,33 @@ export interface components {
     };
     requestBodies: {
         /** @description Task attributes */
-        "05d1d58791d3ce51b0342ab5c9df5125": {
+        "44a12e468446cca94f264e628d0a647c": {
             content: {
-                "application/json": components["schemas"]["11cac7a528631363425253e40126403f"];
+                "application/json": components["schemas"]["fa6e6c4e31f58be39f49a6db42b2f3f9"];
             };
         };
         /** @description Task attributes */
-        "5fde5fb70b584720d331d6e83e523641": {
+        "370b3d7375df9bcb9c095aad2b77b193": {
             content: {
-                "application/json": components["schemas"]["741e9e109aca798e3b547796273eebc5"];
+                "application/json": components["schemas"]["3be98a04af300e34c60ac4d293ee5744"];
+            };
+        };
+        /** @description Credentials */
+        a77c03800c588348735598426c9c7c5a: {
+            content: {
+                "application/json": components["schemas"]["870d9a171fb186bf08504662107b6907"];
+            };
+        };
+        /** @description Account attributes */
+        "06bff77f37e6ff4a05656da8b164df48": {
+            content: {
+                "application/json": components["schemas"]["4ef4a99e1db3e42a1d9eb69ba020e431"];
+            };
+        };
+        /** @description Account attributes */
+        "5ae5b522306c9f6d52349ea5b76b9f49": {
+            content: {
+                "application/json": components["schemas"]["06e6e9ad3b5f6618a38c034c25bd0e68"];
             };
         };
     };
@@ -212,7 +449,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            200: components["responses"]["bb7d421ffcb3fe75e4727bfce51f5bf9"];
+            200: components["responses"]["bf06cd6e060e02c0adbf2c563ba5f63a"];
         };
     };
     POST_api_tasks: {
@@ -222,9 +459,9 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: components["requestBodies"]["05d1d58791d3ce51b0342ab5c9df5125"];
+        requestBody: components["requestBodies"]["44a12e468446cca94f264e628d0a647c"];
         responses: {
-            201: components["responses"]["48c8ad2bbd92443ef0c972d2c7d47273"];
+            201: components["responses"]["5db4ac33b6ca0f2cee2479b8014c253e"];
             400: components["responses"]["9ece6db49bc8f4b0bfe113ef4f05b4fa"];
             422: components["responses"]["df81bc72fcedd6c0018d35f41bcc3caa"];
         };
@@ -241,7 +478,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            200: components["responses"]["8c5011d3bab8f49d3873a0db6638ced0"];
+            200: components["responses"]["6107dae5839af589b4efb5bf6c91dc24"];
             404: components["responses"]["46ac2f9c36cf1a3281a7bb623be16249"];
         };
     };
@@ -255,9 +492,10 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: components["requestBodies"]["5fde5fb70b584720d331d6e83e523641"];
+        requestBody?: components["requestBodies"]["370b3d7375df9bcb9c095aad2b77b193"];
         responses: {
-            200: components["responses"]["f8d073d2a50a96227321f14aadbd1efd"];
+            200: components["responses"]["189fe611a9a8af3090ea53a158aa264b"];
+            403: components["responses"]["70551adacd134cfc98512370b782c82b"];
             404: components["responses"]["46ac2f9c36cf1a3281a7bb623be16249"];
             422: components["responses"]["df81bc72fcedd6c0018d35f41bcc3caa"];
         };
@@ -275,6 +513,7 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: components["responses"]["720d4914627c5848af85b036552e235a"];
+            403: components["responses"]["70551adacd134cfc98512370b782c82b"];
             404: components["responses"]["46ac2f9c36cf1a3281a7bb623be16249"];
         };
     };
@@ -288,11 +527,105 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: components["requestBodies"]["5fde5fb70b584720d331d6e83e523641"];
+        requestBody?: components["requestBodies"]["370b3d7375df9bcb9c095aad2b77b193"];
         responses: {
-            200: components["responses"]["f8d073d2a50a96227321f14aadbd1efd"];
+            200: components["responses"]["189fe611a9a8af3090ea53a158aa264b"];
+            403: components["responses"]["70551adacd134cfc98512370b782c82b"];
             404: components["responses"]["46ac2f9c36cf1a3281a7bb623be16249"];
             422: components["responses"]["df81bc72fcedd6c0018d35f41bcc3caa"];
+        };
+    };
+    POST_api_session: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: components["requestBodies"]["a77c03800c588348735598426c9c7c5a"];
+        responses: {
+            201: components["responses"]["8dd0b88837d79388e991428fa339ac8f"];
+            401: components["responses"]["a9adb6e891fb8cd1a0335a9abea3ad2a"];
+            422: components["responses"]["782d73e2a3a6a67c78cce51aaa36437f"];
+        };
+    };
+    DELETE_api_session: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["f083757c3185154225b449cd7d64121a"];
+            404: components["responses"]["f61607a45fa5b0e25d0d160f2c121c73"];
+        };
+    };
+    POST_api_registration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: components["requestBodies"]["06bff77f37e6ff4a05656da8b164df48"];
+        responses: {
+            201: components["responses"]["ef0961b3b5ba625f5604bc727f172391"];
+            422: components["responses"]["38bf55bf2316ec84ba30471b38ca2474"];
+        };
+    };
+    POST_api_account_regenerate_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["73a5a6b38eba050c51620ce156bfc284"];
+        };
+    };
+    GET_api_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["0a0e12e4293be22c445d2638dafb123d"];
+            404: components["responses"]["f61607a45fa5b0e25d0d160f2c121c73"];
+        };
+    };
+    PUT_api_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: components["requestBodies"]["5ae5b522306c9f6d52349ea5b76b9f49"];
+        responses: {
+            200: components["responses"]["d5bf93f88f6be76863a92dac6d6208e1"];
+            404: components["responses"]["f61607a45fa5b0e25d0d160f2c121c73"];
+            422: components["responses"]["38bf55bf2316ec84ba30471b38ca2474"];
+        };
+    };
+    PATCH_api_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: components["requestBodies"]["5ae5b522306c9f6d52349ea5b76b9f49"];
+        responses: {
+            200: components["responses"]["d5bf93f88f6be76863a92dac6d6208e1"];
+            404: components["responses"]["f61607a45fa5b0e25d0d160f2c121c73"];
+            422: components["responses"]["38bf55bf2316ec84ba30471b38ca2474"];
         };
     };
 }

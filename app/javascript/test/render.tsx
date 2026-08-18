@@ -3,6 +3,7 @@ import { render } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MemoryRouter } from "react-router"
 import { createQueryClient } from "@/lib/query-client"
+import { AuthProvider } from "@/contexts/AuthContext"
 
 export function createQueryWrapper(queryClient: QueryClient = createQueryClient()) {
   return function QueryWrapper({ children }: { children: ReactNode }) {
@@ -22,7 +23,9 @@ export function renderWithProviders(
   function Wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={[route]}>{children}</MemoryRouter>
+        <MemoryRouter initialEntries={[route]}>
+          <AuthProvider>{children}</AuthProvider>
+        </MemoryRouter>
       </QueryClientProvider>
     )
   }

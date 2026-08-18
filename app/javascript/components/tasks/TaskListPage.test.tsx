@@ -40,7 +40,16 @@ describe("TaskListPage", () => {
       <SsrDataContext.Provider
         value={{
           initialTasks: [
-            { id: 99, title: "Seeded task", description: "", done: false, created_at: "", updated_at: "" },
+            {
+              id: 99,
+              title: "Seeded task",
+              description: "",
+              done: false,
+              is_public: false,
+              owner_username: "testuser",
+              created_at: "",
+              updated_at: "",
+            },
           ],
         }}
       >

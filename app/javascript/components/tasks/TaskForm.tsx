@@ -12,6 +12,7 @@ export interface TaskFormValues {
   title: string
   description: string
   done: boolean
+  is_public: boolean
 }
 
 export interface TaskFormProps {
@@ -23,18 +24,31 @@ export interface TaskFormProps {
   submitLabel?: string
 }
 
+function normalizeValues(initialValues?: Partial<TaskFormValues>): TaskFormValues {
+  return {
+    title: initialValues?.title ?? "",
+    description: initialValues?.description ?? "",
+    done: initialValues?.done ?? false,
+    is_public: initialValues?.is_public ?? false,
+  }
+}
+
 function useTaskFormFields(initialValues?: Partial<TaskFormValues>) {
-  const [title, setTitle] = useState(initialValues?.title ?? "")
-  const [description, setDescription] = useState(initialValues?.description ?? "")
-  const [done, setDone] = useState(initialValues?.done ?? false)
-  return { title, setTitle, description, setDescription, done, setDone }
+  const defaults = normalizeValues(initialValues)
+  const [title, setTitle] = useState(defaults.title)
+  const [description, setDescription] = useState(defaults.description)
+  const [done, setDone] = useState(defaults.done)
+  const [isPublic, setIsPublic] = useState(defaults.is_public)
+  return { title, setTitle, description, setDescription, done, setDone, isPublic, setIsPublic }
 }
 
 function isDirty(current: TaskFormValues, initialValues?: Partial<TaskFormValues>) {
+  const initial = normalizeValues(initialValues)
   return (
-    current.title !== (initialValues?.title ?? "") ||
-    current.description !== (initialValues?.description ?? "") ||
-    current.done !== (initialValues?.done ?? false)
+    current.title !== initial.title ||
+    current.description !== initial.description ||
+    current.done !== initial.done ||
+    current.is_public !== initial.is_public
   )
 }
 
@@ -51,9 +65,10 @@ export function TaskForm({
   fieldErrors,
   submitLabel = "Save",
 }: TaskFormProps) {
-  const { title, setTitle, description, setDescription, done, setDone } = useTaskFormFields(initialValues)
+  const { title, setTitle, description, setDescription, done, setDone, isPublic, setIsPublic } =
+    useTaskFormFields(initialValues)
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const dirty = isDirty({ title, description, done }, initialValues)
+  const dirty = isDirty({ title, description, done, is_public: isPublic }, initialValues)
 
   // Guards tab close / refresh / typing a new URL. Doesn't cover the browser's
   // back/forward button -- that requires React Router's data-router-only useBlocker,
@@ -71,7 +86,7 @@ export function TaskForm({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    onSubmit({ title, description, done })
+    onSubmit({ title, description, done, is_public: isPublic })
   }
 
   function handleCancelClick() {
@@ -108,6 +123,11 @@ export function TaskForm({
         <div className="flex items-center gap-2">
           <Checkbox id="task-done" checked={done} onCheckedChange={setDone} />
           <Label htmlFor="task-done">Completed</Label>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Checkbox id="task-is-public" checked={isPublic} onCheckedChange={setIsPublic} />
+          <Label htmlFor="task-is-public">Public (visible to everyone)</Label>
         </div>
 
         <div className="flex gap-2">

@@ -16,7 +16,16 @@ describe("useTasksQuery", () => {
     const { result } = renderHook(
       () =>
         useTasksQuery([
-          { id: 9, title: "Seeded", description: "", done: false, created_at: "", updated_at: "" },
+          {
+            id: 9,
+            title: "Seeded",
+            description: "",
+            done: false,
+            is_public: false,
+            owner_username: "testuser",
+            created_at: "",
+            updated_at: "",
+          },
         ]),
       { wrapper: createQueryWrapper() }
     )
