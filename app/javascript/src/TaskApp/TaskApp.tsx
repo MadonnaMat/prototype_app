@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from "react"
+import { useEffect, useState, useSyncExternalStore } from "react"
 import { QueryClientProvider } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { createQueryClient } from "@/lib/query-client"
@@ -24,6 +24,14 @@ function useIsHydrated() {
 export function TaskApp(props: TaskAppProps) {
   const [queryClient] = useState(() => createQueryClient())
   const isHydrated = useIsHydrated()
+
+  // SSR paints real content (including interactive-looking buttons/links)
+  // before React has attached any event listeners to it, so system tests
+  // waiting on that content are racing hydration, not testing readiness.
+  // This gives them a real signal to wait on instead.
+  useEffect(() => {
+    if (isHydrated) document.body.dataset.hydrated = "true"
+  }, [isHydrated])
 
   return (
     <QueryClientProvider client={queryClient}>

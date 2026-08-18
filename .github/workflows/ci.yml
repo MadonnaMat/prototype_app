@@ -86,7 +86,9 @@ jobs:
     #    options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
       - name: Install packages
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libvips node-gyp
+        run: |
+          sudo apt-get update
+          sudo NEEDRESTART_MODE=a DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y libvips node-gyp
 
       - name: Checkout code
         uses: actions/checkout@v6
@@ -131,7 +133,9 @@ jobs:
     #    options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
       - name: Install packages
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libvips node-gyp
+        run: |
+          sudo apt-get update
+          sudo NEEDRESTART_MODE=a DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y libvips node-gyp
 
       - name: Checkout code
         uses: actions/checkout@v6
