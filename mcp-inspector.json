@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "prototype-app": {
+      "type": "streamable-http",
+      "url": "http://localhost:3000/mcp",
+      "paginatedLists": true
+    },
+    "filesystem-server-default": {
+      "type": "stdio",
+      "command": "yarn",
+      "args": [
+        "dlx",
+        "@modelcontextprotocol/server-filesystem",
+        "/tmp"
+      ]
+    },
+    "everything-server-default": {
+      "type": "stdio",
+      "command": "yarn",
+      "args": [
+        "dlx",
+        "@modelcontextprotocol/server-everything"
+      ]
+    }
+  }
+}
