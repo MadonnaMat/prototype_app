@@ -22,6 +22,12 @@ language, and always before wrapping up a task.
 - `bin/rails flog` — complexity gate over `app/` + `lib/`; fails if the single
   worst method's ABC score exceeds 25 (current worst is ~14.6 — see
   `lib/tasks/flog.rake`)
+- `bin/rails flog_total` — companion whole-codebase complexity gate on the
+  per-method *average* ABC score across `app/` + `lib/` (threshold 8,
+  current ~4.2), not a raw total — a raw total scales with codebase size and
+  would need bumping in every PR that adds a feature. Catches complexity
+  creep from many individually-fine methods that `bin/rails flog` alone
+  can't see. Not currently wired into `bin/ci`.
 - `bin/brakeman` — security static analysis; run when touching auth, params,
   raw SQL, or anything else user-input-facing
 - `bin/bundler-audit` — only needed after changing the `Gemfile`

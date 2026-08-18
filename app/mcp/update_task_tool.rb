@@ -10,13 +10,15 @@ class UpdateTaskTool < MCP::Tool
       done: { type: "boolean" }
     },
     required: [ "id" ],
+    additionalProperties: false,
   )
 
   def self.call(id:, server_context:, **attrs)
-    task = Task.find_by(id: id)
-    return TaskSerialization.not_found_response(id) unless task
-
-    task.update(attrs.slice(:title, :description, :done))
-    TaskSerialization.persist_response(task)
+    TaskSerialization.rescue_errors do
+      TaskSerialization.find_task(id) do |task|
+        success = task.update(attrs.slice(:title, :description, :done))
+        TaskSerialization.persist_response(task, success)
+      end
+    end
   end
 end

@@ -3,11 +3,13 @@
 # tool classes isn't guaranteed ready when initializers run).
 #
 # NOTE: StreamableHTTPTransport keeps session state in memory, so this only
-# works correctly with a single Puma process. config/puma.rb has no
-# WEB_CONCURRENCY set today (single worker), which is what makes this safe;
-# if that ever changes (or Kamal scales to multiple containers behind a
-# non-sticky load balancer), MCP sessions will break with intermittent
-# "unknown session" 404s.
+# works correctly with a single Puma process. `build_transport` raises at
+# boot if WEB_CONCURRENCY implies more than one worker, so a config change
+# made for unrelated reasons (e.g. bumping worker count under load) fails
+# loudly at startup instead of showing up later as intermittent "unknown
+# session" errors on MCP clients. If multi-worker/multi-container ever
+# becomes a real requirement, this transport needs an external session store
+# (e.g. Redis) before the guard can be removed.
 #
 # enable_json_response: true — without it, the transport answers every POST
 # after `initialize` (tools/list, tools/call, ...) as an SSE stream instead of
@@ -18,10 +20,21 @@
 class McpServerBuilder
   class << self
     def transport
-      @transport ||= MCP::Server::Transports::StreamableHTTPTransport.new(server, enable_json_response: true)
+      @transport ||= build_transport
     end
 
     private
+
+    def build_transport
+      workers = ENV["WEB_CONCURRENCY"]
+      if workers.present? && !%w[0 1].include?(workers)
+        raise "McpServerBuilder requires a single Puma worker (unset WEB_CONCURRENCY, " \
+              "or set it to 0/1) because MCP session state is kept in memory; got " \
+              "WEB_CONCURRENCY=#{workers.inspect}."
+      end
+
+      MCP::Server::Transports::StreamableHTTPTransport.new(server, enable_json_response: true)
+    end
 
     def server
       MCP::Server.new(
