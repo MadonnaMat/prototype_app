@@ -7,13 +7,8 @@ class ChatController < Api::BaseController
   include ActionController::Live
 
   def create
-    response.headers["Content-Type"] = "text/event-stream"
-    response.headers["Cache-Control"] = "no-cache"
-    response.headers["X-Accel-Buffering"] = "no"
-
-    mcp_client = McpClient.new(base_url: "#{request.base_url}/mcp", bearer_token: mcp_authorization_header)
-    orchestrator = ChatOrchestrator.new(provider: ChatProviders.build, mcp_client: mcp_client)
-    orchestrator.run(messages: parsed_request_messages) { |event| response.stream.write(sse_chunk(event)) }
+    set_streaming_headers
+    run_chat
     response.stream.write("data: [DONE]\n\n")
   rescue => e
     response.stream.write(sse_chunk(type: :error, text: e.message))
@@ -22,6 +17,18 @@ class ChatController < Api::BaseController
   end
 
   private
+
+  def set_streaming_headers
+    response.headers["Content-Type"] = "text/event-stream"
+    response.headers["Cache-Control"] = "no-cache"
+    response.headers["X-Accel-Buffering"] = "no"
+  end
+
+  def run_chat
+    mcp_client = McpClient.new(base_url: "#{request.base_url}/mcp", bearer_token: mcp_authorization_header)
+    orchestrator = ChatOrchestrator.new(provider: ChatProviders.build, mcp_client: mcp_client)
+    orchestrator.run(messages: messages_with_system_prompt) { |event| response.stream.write(sse_chunk(event)) }
+  end
 
   # Api::BaseController accepts either a Bearer token or the SPA's session
   # cookie, but McpClient needs an Authorization-header-shaped credential to
@@ -43,14 +50,21 @@ class ChatController < Api::BaseController
     params.require(:messages).map { |message| message.permit(:role, :content).to_h.symbolize_keys }
   end
 
+  def messages_with_system_prompt
+    [ { role: "system", content: PromptLoader.load("chat_system_prompt") } ] + parsed_request_messages
+  end
+
   # ChatOrchestrator executes tool calls server-side and only ever emits
   # :content_delta/:done — :tool_call events never reach here, they're
-  # consumed internally by the orchestrator's own loop.
+  # consumed internally by the orchestrator's own loop. `task_changes` on
+  # the terminal chunk (not a standard OpenAI field) lists every task the
+  # model touched this turn — {action, id, title} — so a caller can act on
+  # what happened without parsing the model's prose reply.
   def sse_chunk(event)
     payload =
       case event[:type]
       when :content_delta then { choices: [ { delta: { content: event[:text] } } ] }
-      when :done then { choices: [ { delta: {}, finish_reason: event[:finish_reason] } ] }
+      when :done then { choices: [ { delta: {}, finish_reason: event[:finish_reason] } ], task_changes: event[:task_changes] }
       when :error then { error: { message: event[:text] } }
       end
     "data: #{payload.to_json}\n\n"

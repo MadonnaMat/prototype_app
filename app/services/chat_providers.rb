@@ -5,11 +5,10 @@
 # need to change.
 module ChatProviders
   def self.build
-    case Rails.application.config.x.chat_provider
-    when "ollama"
-      Ollama.new(base_url: Rails.application.config.x.ollama_url, model: Rails.application.config.x.ollama_model)
-    else
-      raise "Unknown LLM_PROVIDER: #{Rails.application.config.x.chat_provider.inspect}"
+    config = Rails.application.config.x
+    case config.chat_provider
+    when "ollama" then Ollama.new(base_url: config.ollama_url, model: config.ollama_model)
+    else raise "Unknown LLM_PROVIDER: #{config.chat_provider.inspect}"
     end
   end
 end

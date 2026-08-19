@@ -3,9 +3,20 @@
 # the model requests a tool call, executes it via MCP, feeds the result
 # back into the conversation, and asks the provider to continue — until it
 # answers with plain text (no more tool calls) or MAX_TOOL_CALL_ROUNDS is
-# hit.
+# hit. Also tracks which tasks were touched along the way (see
+# TASK_ACTIONS) and reports them as `task_changes` on the final :done
+# event, so a caller can act on what happened without parsing the model's
+# prose reply.
 class ChatOrchestrator
   MAX_TOOL_CALL_ROUNDS = 5
+
+  TASK_ACTIONS = {
+    "create_task" => :created,
+    "update_task" => :updated,
+    "complete_task" => :completed,
+    "delete_task" => :deleted,
+    "list_tasks" => :accessed
+  }.freeze
 
   def initialize(provider:, mcp_client:)
     @provider = provider
@@ -13,6 +24,7 @@ class ChatOrchestrator
   end
 
   def run(messages:, &emit)
+    @task_changes = []
     tools = @mcp_client.tool_specs
     conversation = messages.dup
 
@@ -20,7 +32,7 @@ class ChatOrchestrator
       tool_calls, finish_reason = stream_one_turn(conversation, tools, &emit)
 
       if tool_calls.empty?
-        emit.call({ type: :done, finish_reason: finish_reason })
+        emit.call({ type: :done, finish_reason: finish_reason, task_changes: @task_changes })
         return
       end
 
@@ -28,7 +40,7 @@ class ChatOrchestrator
       tool_calls.each { |call| conversation << tool_result_message(call) }
     end
 
-    emit.call({ type: :done, finish_reason: "tool_call_limit_reached" })
+    emit.call({ type: :done, finish_reason: "tool_call_limit_reached", task_changes: @task_changes })
   end
 
   private
@@ -58,6 +70,20 @@ class ChatOrchestrator
 
   def tool_result_message(call)
     result = @mcp_client.call_tool(name: call[:name], arguments: call[:arguments])
+    record_task_changes(call[:name], result[:data])
     { role: "tool", tool_call_id: call[:id], content: result[:text] }
+  end
+
+  # `data` is nil for error responses (they're a plain message string, not
+  # JSON — see McpClient#call_tool), so this naturally no-ops on failure.
+  def record_task_changes(tool_name, data)
+    action = TASK_ACTIONS[tool_name]
+    return unless action && data
+
+    if tool_name == "list_tasks"
+      Array(data[:tasks]).each { |task| @task_changes << { action: action, id: task[:id], title: task[:title] } }
+    elsif data[:id]
+      @task_changes << { action: action, id: data[:id], title: data[:title] }
+    end
   end
 end

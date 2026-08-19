@@ -4,9 +4,18 @@ module ChatProviders
   # three events. `connection:` is injectable so tests can swap in
   # Faraday's built-in :test adapter instead of hitting a real server.
   class Ollama < Base
+    # Generation can legitimately run long for a local model working
+    # through several tool-calling rounds, so this is generous — it's a
+    # backstop against a truly wedged connection, not a normal-latency
+    # bound. open_timeout stays tight since it's a local server.
+    REQUEST_TIMEOUT = 300
+
     def initialize(base_url:, model:, connection: nil)
       @model = model
-      @connection = connection || Faraday.new(url: base_url)
+      @connection = connection || Faraday.new(url: base_url) do |faraday|
+        faraday.options.open_timeout = 5
+        faraday.options.timeout = REQUEST_TIMEOUT
+      end
     end
 
     def stream_chat(messages:, tools:, &emit)
