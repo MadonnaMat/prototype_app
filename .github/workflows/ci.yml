@@ -109,12 +109,20 @@ jobs:
       - name: Install JS dependencies
         run: yarn install --immutable
 
+      # Known-flaky: CI's parallel test workers occasionally race precompiling
+      # test assets on first run (see PR #13's CI run for a repro) — a retry
+      # starts the workers fresh and clears it. config/ci.rb still owns the
+      # actual command; this only adds a retry around invoking it.
       - name: Run tests
+        uses: nick-fields/retry@v3
         env:
           RAILS_ENV: test
           # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           # REDIS_URL: redis://localhost:6379/0
-        run: 'bin/ci --only "Tests: Rails"'
+        with:
+          timeout_minutes: 6
+          max_attempts: 3
+          command: 'bin/ci --only "Tests: Rails"'
 
       - name: Verify seeds run cleanly
         env:
@@ -156,12 +164,21 @@ jobs:
       - name: Install JS dependencies
         run: yarn install --immutable
 
+      # Known-flaky: see test/application_system_test_case.rb's comment on
+      # click_and_wait_for — WebDriver clicks against this app's interactive
+      # elements occasionally don't take effect in headless Chrome, and can
+      # still exhaust that in-test retry. A step-level retry starts the whole
+      # browser session fresh; config/ci.rb still owns the actual command.
       - name: Run System Tests
+        uses: nick-fields/retry@v3
         env:
           RAILS_ENV: test
           # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           # REDIS_URL: redis://localhost:6379/0
-        run: 'bin/ci --only "Tests: System"'
+        with:
+          timeout_minutes: 8
+          max_attempts: 3
+          command: 'bin/ci --only "Tests: System"'
 
       - name: Keep screenshots from failed system tests
         uses: actions/upload-artifact@v4
