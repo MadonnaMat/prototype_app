@@ -11,12 +11,9 @@ class ChatController < Api::BaseController
     response.headers["Cache-Control"] = "no-cache"
     response.headers["X-Accel-Buffering"] = "no"
 
-    provider = ChatProviders.build
-    # tools: [] until McpClient/ChatOrchestrator are wired in — plain
-    # conversational round-trip only, for now.
-    provider.stream_chat(messages: parsed_request_messages, tools: []) do |event|
-      response.stream.write(sse_chunk(event))
-    end
+    mcp_client = McpClient.new(base_url: "#{request.base_url}/mcp", bearer_token: mcp_authorization_header)
+    orchestrator = ChatOrchestrator.new(provider: ChatProviders.build, mcp_client: mcp_client)
+    orchestrator.run(messages: parsed_request_messages) { |event| response.stream.write(sse_chunk(event)) }
     response.stream.write("data: [DONE]\n\n")
   rescue => e
     response.stream.write(sse_chunk(type: :error, text: e.message))
@@ -46,12 +43,13 @@ class ChatController < Api::BaseController
     params.require(:messages).map { |message| message.permit(:role, :content).to_h.symbolize_keys }
   end
 
+  # ChatOrchestrator executes tool calls server-side and only ever emits
+  # :content_delta/:done — :tool_call events never reach here, they're
+  # consumed internally by the orchestrator's own loop.
   def sse_chunk(event)
     payload =
       case event[:type]
       when :content_delta then { choices: [ { delta: { content: event[:text] } } ] }
-      when :tool_call
-        { choices: [ { delta: { tool_calls: [ { id: event[:id], function: { name: event[:name], arguments: event[:arguments].to_json } } ] } } ] }
       when :done then { choices: [ { delta: {}, finish_reason: event[:finish_reason] } ] }
       when :error then { error: { message: event[:text] } }
       end
