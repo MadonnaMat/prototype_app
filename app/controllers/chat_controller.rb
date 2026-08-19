@@ -26,6 +26,18 @@ class ChatController < Api::BaseController
 
   private
 
+  # Api::BaseController accepts either a Bearer token or the SPA's session
+  # cookie, but McpClient needs an Authorization-header-shaped credential to
+  # forward to /mcp regardless of which one authenticated this request. A
+  # cookie-authenticated request (the future chat UI's case) has no such
+  # header to forward, so mint a short-lived McpDelegationToken instead —
+  # see that class for why (in short: forwarding the cookie itself would be
+  # a CSRF hole, and forwarding/minting the persistent api_token would
+  # invalidate it for any other use of the same account).
+  def mcp_authorization_header
+    request.headers["Authorization"].presence || "Bearer #{McpDelegationToken.generate(Current.user)}"
+  end
+
   # ActionController::Live runs the action body in its own thread, so the
   # inherited rescue_from isn't reliable for errors raised after streaming
   # has started (headers are already flushed) — hence the explicit

@@ -5,6 +5,10 @@
 # gating happens at tool-call time (TaskSerialization#rescue_errors) and
 # resource-read time (McpUnauthorizedError), mirroring how
 # Api::BaseController#authenticate_via_token works for the JSON API.
+#
+# Accepts either a user's persistent API token or a McpDelegationToken —
+# see that class for why /chat/completions uses the latter instead of a
+# session cookie or the persistent token.
 class McpTokenAuthentication
   def initialize(app)
     @app = app
@@ -12,7 +16,7 @@ class McpTokenAuthentication
 
   def call(env)
     header = Rack::Request.new(env).get_header("HTTP_AUTHORIZATION")
-    Current.user = User.authenticate_by_bearer_header(header)
+    Current.user = User.authenticate_by_bearer_header(header) || McpDelegationToken.authenticate(header&.delete_prefix("Bearer "))
     @app.call(env)
   end
 end
