@@ -9,10 +9,13 @@ class ChatController < Api::BaseController
   def create
     set_streaming_headers
     run_chat
-    response.stream.write("data: [DONE]\n\n")
   rescue => e
     response.stream.write(sse_chunk(type: :error, text: e.message))
   ensure
+    # In `ensure` (not just the success path) so a client waiting on the
+    # standard terminator still gets one after a mid-stream error, instead
+    # of the connection just closing with no [DONE].
+    response.stream.write("data: [DONE]\n\n")
     response.stream.close
   end
 

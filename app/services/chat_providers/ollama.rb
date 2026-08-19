@@ -22,7 +22,7 @@ module ChatProviders
       buffer = +""
       tool_calls = Hash.new { |h, k| h[k] = { id: nil, name: nil, arguments: +"" } }
 
-      @connection.post("/v1/chat/completions") do |req|
+      response = @connection.post("/v1/chat/completions") do |req|
         req.headers["Content-Type"] = "application/json"
         req.body = request_body(messages, tools)
         req.options.on_data = proc do |chunk, _bytes|
@@ -33,9 +33,18 @@ module ChatProviders
           end
         end
       end
+
+      check_response!(response)
     end
 
     private
+
+    # A non-2xx response has no SSE body for on_data to parse, so without
+    # this check a failed request (bad model name, Ollama down mid-request,
+    # etc.) would silently yield nothing instead of surfacing the failure.
+    def check_response!(response)
+      raise "Ollama request failed: #{response.status} #{response.body}" unless response.success?
+    end
 
     def request_body(messages, tools)
       body = { model: @model, messages: messages, stream: true }

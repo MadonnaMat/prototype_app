@@ -17,6 +17,9 @@ module ActiveSupport
   end
 end
 
+# Shared test doubles/helpers used across multiple test files.
+Dir[Rails.root.join("test/support/**/*.rb")].sort.each { |file| require file }
+
 
 # Ensure that tests run against fresh webpack assets.
 ActiveSupport::TestCase.setup do
