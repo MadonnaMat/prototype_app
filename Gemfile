@@ -21,6 +21,11 @@ gem "rack-cors"
 # Expose app data/actions to LLM clients over MCP (Model Context Protocol) [https://github.com/modelcontextprotocol/ruby-sdk]
 gem "mcp"
 
+# HTTP client for the /chat/completions endpoint: streams from the Ollama
+# provider and is also what MCP::Client::HTTP (used to call back into our
+# own /mcp server) requires lazily under the hood.
+gem "faraday"
+
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 gem "bcrypt", "~> 3.1.7"
 
