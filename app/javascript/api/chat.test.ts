@@ -1,28 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { streamOfBytes, streamOf, mockFetchResolving } from "@/test/sse"
 import { postChatCompletion, ChatRequestError, type ChatStreamEvent } from "./chat"
-
-function streamOfBytes(chunks: Uint8Array[]): ReadableStream<Uint8Array> {
-  let index = 0
-  return new ReadableStream({
-    pull(controller) {
-      if (index < chunks.length) {
-        controller.enqueue(chunks[index])
-        index++
-      } else {
-        controller.close()
-      }
-    },
-  })
-}
-
-function streamOf(chunks: string[]): ReadableStream<Uint8Array> {
-  const encoder = new TextEncoder()
-  return streamOfBytes(chunks.map((chunk) => encoder.encode(chunk)))
-}
-
-function mockFetchResolving(body: ReadableStream<Uint8Array> | null, status = 200) {
-  return vi.fn().mockResolvedValue(new Response(body, { status }))
-}
 
 async function collect(events: AsyncGenerator<ChatStreamEvent>): Promise<ChatStreamEvent[]> {
   const collected: ChatStreamEvent[] = []

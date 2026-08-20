@@ -16,6 +16,10 @@ window.matchMedia ??= (query: string) => ({
   dispatchEvent: () => false,
 })
 
+// jsdom doesn't implement scrollIntoView; ChatWindow calls it to keep the message list
+// pinned to the bottom as new content streams in.
+Element.prototype.scrollIntoView ??= () => {}
+
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }))
 
 afterEach(() => {
