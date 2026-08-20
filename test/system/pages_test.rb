@@ -17,10 +17,10 @@ class PagesTest < ApplicationSystemTestCase
   test "creating a task from the list page shows a success toast" do
     visit root_path
     wait_for_hydration
-    click_and_wait_for(text: "New task") { click_link "New Task" }
+    click_and_wait_for("New Task", text: "New task")
 
     fill_in "Title", with: "Walk the dog"
-    click_and_wait_for(text: "Task created") { click_on "Create task" }
+    click_and_wait_for("Create task", text: "Task created")
 
     assert_selector "h1", text: "Tasks"
     assert_text "Walk the dog"
@@ -30,9 +30,9 @@ class PagesTest < ApplicationSystemTestCase
   test "backing out of a new task with no edits does not ask for confirmation" do
     visit root_path
     wait_for_hydration
-    click_and_wait_for(text: "New task") { click_link "New Task" }
+    click_and_wait_for("New Task", text: "New task")
 
-    click_and_wait_for(text: "Tasks") { click_on "Back" }
+    click_and_wait_for("Back", text: "Tasks")
 
     assert_selector "h1", text: "Tasks"
   end
@@ -40,16 +40,16 @@ class PagesTest < ApplicationSystemTestCase
   test "backing out of an edited form asks for confirmation before discarding" do
     visit root_path
     wait_for_hydration
-    click_and_wait_for(text: "New task") { click_link "New Task" }
+    click_and_wait_for("New Task", text: "New task")
 
     fill_in "Title", with: "Unsaved task"
-    click_and_wait_for(text: "Discard changes?") { click_on "Back" }
+    click_and_wait_for("Back", text: "Discard changes?")
 
-    click_and_wait_for(text: "New task") { click_on "Cancel" }
+    click_and_wait_for("Cancel", text: "New task")
     assert_field "Title", with: "Unsaved task"
 
-    click_and_wait_for(text: "Discard changes?") { click_on "Back" }
-    click_and_wait_for(text: "Tasks") { click_on "Discard" }
+    click_and_wait_for("Back", text: "Discard changes?")
+    click_and_wait_for("Discard", text: "Tasks")
 
     assert_selector "h1", text: "Tasks"
     assert_no_text "Unsaved task"
@@ -60,9 +60,9 @@ class PagesTest < ApplicationSystemTestCase
     visit root_path
     wait_for_hydration
 
-    click_and_wait_for(text: "Edit task") { click_on task.title }
+    click_and_wait_for(task.title, text: "Edit task")
     fill_in "Title", with: "Updated title"
-    click_and_wait_for(text: "Tasks") { click_on "Save changes" }
+    click_and_wait_for("Save changes", text: "Tasks")
 
     assert_text "Updated title"
     assert_no_text "Original title"
@@ -73,7 +73,7 @@ class PagesTest < ApplicationSystemTestCase
     visit root_path
     wait_for_hydration
 
-    click_and_wait_for(text: "Delete \"#{task.title}\"?") { click_on "Delete \"#{task.title}\"" }
+    click_and_wait_for("Delete \"#{task.title}\"", text: "Delete \"#{task.title}\"?")
     assert_text "Delete me"
 
     click_on "Delete", exact: true

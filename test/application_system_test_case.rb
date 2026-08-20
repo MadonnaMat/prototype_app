@@ -28,16 +28,21 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   end
 
   # WebDriver clicks against this app's interactive elements (Base UI
-  # buttons/dialog triggers, react-router links) occasionally don't take
-  # effect in headless Chrome -- no JS error, the click event fires, but
-  # whatever it's supposed to trigger (navigation, a dialog opening) just
-  # doesn't happen. Re-issuing the click if the expected result hasn't shown
-  # up within a short beat works around it without papering over a real
-  # failure: a genuinely broken interaction still exhausts the retries and
-  # fails normally on the assertion that follows.
-  def click_and_wait_for(text:, retries: 10, &click)
-    click.call
-    click.call until page.has_text?(text, wait: 2) || (retries -= 1) < 0
+  # buttons/dialog triggers, react-router links) don't reliably trigger
+  # their effect (navigation, a dialog opening) in headless Chrome -- no JS
+  # error, the click event fires, but whatever it's supposed to do just
+  # doesn't happen. Confirmed via a raw `element.click()` succeeding every
+  # time on the exact element where Capybara's native (WebDriver) click
+  # sometimes doesn't: Base UI's `<Button render={<Link .../>}>` pattern
+  # renders as `<a type="button">`, and WebDriver's synthetic input
+  # pipeline doesn't reliably land on it the way a direct DOM click does.
+  # Dispatching the click via JS instead of through WebDriver sidesteps
+  # that; the retry loop stays as a safety net for genuine timing issues,
+  # not as the primary fix.
+  def click_and_wait_for(locator, text:, retries: 10, **find_options)
+    perform_click = -> { page.execute_script("arguments[0].click()", find(:link_or_button, locator, **find_options).native) }
+    perform_click.call
+    perform_click.call until page.has_text?(text, wait: 2) || (retries -= 1) < 0
     assert_text text
   end
 end
