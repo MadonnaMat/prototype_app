@@ -14,8 +14,7 @@ class ChatOrchestrator
     "create_task" => :created,
     "update_task" => :updated,
     "complete_task" => :completed,
-    "delete_task" => :deleted,
-    "list_tasks" => :accessed
+    "delete_task" => :deleted
   }.freeze
 
   def initialize(provider:, mcp_client:)
@@ -78,12 +77,8 @@ class ChatOrchestrator
   # JSON — see McpClient#call_tool), so this naturally no-ops on failure.
   def record_task_changes(tool_name, data)
     action = TASK_ACTIONS[tool_name]
-    return unless action && data
+    return unless action && data && data[:id]
 
-    if tool_name == "list_tasks"
-      Array(data[:tasks]).each { |task| @task_changes << { action: action, id: task[:id], title: task[:title] } }
-    elsif data[:id]
-      @task_changes << { action: action, id: data[:id], title: data[:title] }
-    end
+    @task_changes << { action: action, id: data[:id], title: data[:title] }
   end
 end

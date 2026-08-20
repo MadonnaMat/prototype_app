@@ -76,7 +76,10 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Setup steps (~2-3 min) + retry step's worst case (6 min x 3 attempts =
+    # 18 min) + the seeds step, with headroom so a legitimately-succeeding
+    # retry attempt isn't killed by the job timeout before it finishes.
+    timeout-minutes: 25
 
     # services:
     #  redis:
@@ -131,7 +134,10 @@ jobs:
 
   system-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Setup steps (~2-3 min) + retry step's worst case (8 min x 3 attempts =
+    # 24 min), with headroom so a legitimately-succeeding retry attempt
+    # isn't killed by the job timeout before it finishes.
+    timeout-minutes: 30
 
     # services:
     #  redis:
