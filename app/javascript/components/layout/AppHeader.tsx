@@ -13,6 +13,9 @@ export function AppHeader() {
         </Link>
         {user ? (
           <div className="flex items-center gap-3 text-sm">
+            <Link to="/assistant" className="text-muted-foreground hover:text-foreground">
+              Chat
+            </Link>
             <Link to="/account" className="text-muted-foreground hover:text-foreground">
               {user.username}
             </Link>

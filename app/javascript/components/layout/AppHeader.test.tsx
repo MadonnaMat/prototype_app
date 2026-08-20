@@ -13,6 +13,12 @@ describe("AppHeader", () => {
     expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument()
   })
 
+  it("shows a Chat link when authenticated", async () => {
+    renderWithProviders(<AppHeader />)
+
+    await waitFor(() => expect(screen.getByRole("link", { name: "Chat" })).toHaveAttribute("href", "/assistant"))
+  })
+
   it("shows login/register links when unauthenticated", async () => {
     server.use(
       http.get("/api/account", () =>
@@ -23,6 +29,18 @@ describe("AppHeader", () => {
 
     await waitFor(() => expect(screen.getByRole("link", { name: "Log in" })).toHaveAttribute("href", "/login"))
     expect(screen.getByRole("link", { name: "Register" })).toHaveAttribute("href", "/register")
+  })
+
+  it("hides the Chat link when unauthenticated", async () => {
+    server.use(
+      http.get("/api/account", () =>
+        HttpResponse.json({ meta: { success: false, error: "Unauthenticated" } }, { status: 401 })
+      )
+    )
+    renderWithProviders(<AppHeader />)
+
+    await waitFor(() => expect(screen.getByRole("link", { name: "Log in" })).toBeInTheDocument())
+    expect(screen.queryByRole("link", { name: "Chat" })).not.toBeInTheDocument()
   })
 
   it("clears the user when logout is clicked", async () => {
