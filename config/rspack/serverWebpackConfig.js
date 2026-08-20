@@ -34,6 +34,29 @@ const configureServer = () => {
   };
   serverWebpackConfig.plugins.unshift(new bundler.optimize.LimitChunkCountPlugin({ maxChunks: 1 }));
 
+  // With target: 'web' (see the comment near the bottom of this file), Rspack resolves
+  // package.json "exports" conditional maps using the 'browser' condition here in the
+  // server bundle too -- same as the client build. decode-named-character-reference
+  // (pulled in transitively by remark-gfm/micromark) uses that condition to swap in a
+  // DOM-based implementation that calls `document` at module scope, which throws
+  // "document is not defined" the moment mini_racer evaluates this bundle.
+  //
+  // Broadening conditionNames to exclude 'browser' entirely was tried and reverted: it
+  // also changed how react-dom itself resolves (picking its Node-targeted server renderer,
+  // which needs real Node builtins like `util` that this target: 'web' bundle doesn't
+  // provide as externals) -- too broad a fix for one package's quirk. Aliasing just this
+  // one package to its non-DOM entry point is narrower and doesn't touch anything else's
+  // resolution.
+  const nodePath = require('path');
+  const decodeNamedCharacterReferenceDir = nodePath.dirname(require.resolve('decode-named-character-reference'));
+  serverWebpackConfig.resolve = {
+    ...serverWebpackConfig.resolve,
+    alias: {
+      ...serverWebpackConfig.resolve.alias,
+      'decode-named-character-reference$': nodePath.join(decodeNamedCharacterReferenceDir, 'index.js'),
+    },
+  };
+
   // Custom output for the server-bundle
   // Using Shakapacker 9.0+ privateOutputPath for automatic sync with shakapacker.yml
   // This eliminates manual path configuration and keeps configs in sync.

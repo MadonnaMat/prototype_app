@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ConfirmDialog } from "@/components/ConfirmDialog"
+import { MarkdownContent } from "./MarkdownContent"
 import type { DisplayMessage } from "@/hooks/useChatStream"
 
 export interface ChatWindowProps {
@@ -20,11 +21,11 @@ function MessageBubble({ message }: { message: DisplayMessage }) {
       <div
         className={
           isUser
-            ? "max-w-[80%] rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground"
-            : "max-w-[80%] rounded-lg bg-muted px-3 py-2 text-sm"
+            ? "max-w-[80%] rounded-lg bg-primary px-3 py-2 text-primary-foreground"
+            : "max-w-[80%] rounded-lg bg-muted px-3 py-2"
         }
       >
-        {message.content}
+        <MarkdownContent content={message.content} />
       </div>
     </div>
   )
