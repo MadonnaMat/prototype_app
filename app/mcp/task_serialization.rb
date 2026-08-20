@@ -19,8 +19,13 @@ module TaskSerialization
     text_response(payload.to_json)
   end
 
-  def deleted_response(id)
-    text_response({ id: id, deleted: true }.to_json)
+  # Takes the task itself (not just its id) so the response includes
+  # `title` — attribute readers stay valid after #destroy, and callers
+  # (e.g. ChatOrchestrator's task-change metadata) want the same
+  # id+title shape delete gives them that create/update/complete already
+  # do via task_json, without a second lookup for an already-gone row.
+  def deleted_response(task)
+    text_response({ id: task.id, title: task.title, deleted: true }.to_json)
   end
 
   # Looks up a task the current user can see (own tasks + everyone's public

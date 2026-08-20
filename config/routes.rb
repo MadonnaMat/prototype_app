@@ -15,6 +15,11 @@ Rails.application.routes.draw do
   mount OasRails::Engine => "/docs"
   mount McpServerBuilder.transport => "/mcp"
 
+  # Streaming chat endpoint (OpenAI-compatible path, so official SDKs' chat
+  # completions convenience methods work against it out of the box). See
+  # app/controllers/chat_controller.rb.
+  post "/chat/completions", to: "chat#create"
+
   # Render dynamic PWA files from app/views/pwa/* (remember to link manifest in application.html.erb)
   # get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
   # get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
@@ -28,10 +33,10 @@ Rails.application.routes.draw do
   get "/tasks/:id/edit", to: "pages#home"
 
   # Client-side routing fallback (React Router paths like /tasks/new).
-  # Excludes /api, /docs, and /mcp (and their sub-paths) so unmatched
+  # Excludes /api, /docs, /mcp, and /chat (and their sub-paths) so unmatched
   # requests under those prefixes still 404/error normally instead of
   # rendering the SPA shell.
   get "*path", to: "pages#home",
-      constraints: ->(request) { !request.path.match?(%r{\A/(api|docs|mcp)(/|\z)}) },
+      constraints: ->(request) { !request.path.match?(%r{\A/(api|docs|mcp|chat)(/|\z)}) },
       format: false
 end

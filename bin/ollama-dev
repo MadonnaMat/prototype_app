@@ -1,0 +1,158 @@
+#!/usr/bin/env ruby
+# Installs Ollama and the model the /chat/completions endpoint talks to (see
+# config/initializers/chat_provider.rb), then makes sure it's running.
+# Idempotent — safe to re-run any time, e.g. after a fresh machine setup or
+# to confirm the local LLM is still healthy.
+#
+# Two run modes:
+#   bin/ollama-dev          Foreground mode (default): stops the systemd
+#                            service if it's active, then runs `ollama
+#                            serve` itself so its logs stream to this
+#                            terminal and Ctrl-C stops it.
+#   bin/ollama-dev --daemon Daemon mode: ensures the systemd-managed service
+#                            is installed, enabled, and running, then exits
+#                            — Ollama keeps running in the background.
+#   bin/ollama-dev --daemon stop
+#                            Stops the background systemd service.
+#
+# Installing Ollama (and stopping/starting the systemd service) needs your
+# sudo password interactively — run this script directly in your own
+# terminal, not through a tool that can't supply one.
+#
+# Named ollama-dev, not ollama, deliberately: this project's bin/ directory
+# is on PATH ahead of /usr/local/bin (common in Rails-style dev setups), so
+# a script literally named `ollama` would shadow the real CLI binary and
+# recursively invoke itself wherever this script calls out to `ollama`.
+#
+# The systemd service runs Ollama as its own dedicated `ollama` system user
+# (see `systemctl cat ollama`), which stores pulled models under *that*
+# user's home directory — entirely separate from `~/.ollama/models` under
+# whichever user runs foreground mode. Daemon and foreground mode are
+# therefore backed by two independent model stores: switching modes for the
+# first time re-pulls the model into whichever store is now in use, even if
+# the other one already has it.
+
+require "net/http"
+require "json"
+
+begin
+  require "dotenv/load"
+rescue LoadError
+  nil
+end
+
+OLLAMA_URL = ENV.fetch("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_MODEL = ENV.fetch("OLLAMA_MODEL", "qwen2.5")
+DAEMON = ARGV.include?("--daemon")
+STOP = ARGV.include?("stop")
+
+def command?(name)
+  system("which", name, out: File::NULL, err: File::NULL)
+end
+
+def system!(*args)
+  system(*args, exception: true)
+end
+
+def ollama_reachable?
+  Net::HTTP.get_response(URI(OLLAMA_URL))
+  true
+rescue Errno::ECONNREFUSED
+  false
+end
+
+def wait_until_reachable
+  sleep 1 until ollama_reachable?
+end
+
+# Talks to whichever Ollama server is currently reachable at OLLAMA_URL —
+# callers are responsible for making sure that's the right one (daemon vs.
+# foreground mode's own instance have independent model stores; see header).
+def ensure_model_pulled
+  puts "\n== Ensuring #{OLLAMA_MODEL} is pulled =="
+  tags = JSON.parse(Net::HTTP.get(URI("#{OLLAMA_URL}/api/tags")))
+  already_pulled = tags.fetch("models", []).any? { |m| m["name"].to_s.start_with?("#{OLLAMA_MODEL}:", OLLAMA_MODEL) }
+  if already_pulled
+    puts "#{OLLAMA_MODEL} already pulled."
+  else
+    system!("ollama", "pull", OLLAMA_MODEL)
+  end
+end
+
+if DAEMON && STOP
+  abort "No systemd available to stop the service." unless command?("systemctl")
+  if system("systemctl", "is-active", "--quiet", "ollama")
+    puts "Stopping the Ollama service..."
+    system!("sudo", "systemctl", "stop", "ollama")
+    puts "Stopped."
+  else
+    puts "Ollama service is not running."
+  end
+  exit 0
+end
+
+unless command?("ollama")
+  puts "== Installing Ollama (needs your sudo password) =="
+  system!("curl -fsSL https://ollama.com/install.sh | sh")
+end
+
+if DAEMON
+  unless ollama_reachable?
+    if command?("systemctl")
+      puts "== Starting the Ollama service =="
+      system!("sudo", "systemctl", "enable", "--now", "ollama")
+      wait_until_reachable
+    else
+      abort "Ollama isn't reachable at #{OLLAMA_URL} and no systemd is available to start it — " \
+            "run `ollama serve` yourself in another terminal and re-run this script."
+    end
+  end
+
+  ensure_model_pulled
+
+  puts "\n== Streaming smoke test: POST #{OLLAMA_URL}/v1/chat/completions =="
+  uri = URI("#{OLLAMA_URL}/v1/chat/completions")
+  body = {
+    model: OLLAMA_MODEL,
+    messages: [ { role: "user", content: "Say hello in exactly 3 words." } ],
+    stream: true
+  }.to_json
+
+  Net::HTTP.start(uri.host, uri.port) do |http|
+    request = Net::HTTP::Post.new(uri, "Content-Type" => "application/json")
+    request.body = body
+    http.request(request) { |response| response.read_body { |chunk| print chunk } }
+  end
+  puts
+
+  if command?("nvidia-smi")
+    puts "\n== GPU memory (confirm the model loaded onto GPU, not CPU) =="
+    system("nvidia-smi", "--query-gpu=memory.used,memory.total,utilization.gpu", "--format=csv")
+  end
+
+  puts "\nOllama setup OK — #{OLLAMA_MODEL} is pulled and serving at #{OLLAMA_URL}."
+  puts "Run with no flags (or --foreground) any time to take over the terminal and watch live Ollama logs (Ctrl-C to stop)."
+else
+  puts "\n== Switching to foreground mode =="
+  if command?("systemctl") && system("systemctl", "is-active", "--quiet", "ollama")
+    puts "Stopping the background systemd service (Ctrl-C will stop this run instead)..."
+    system!("sudo", "systemctl", "stop", "ollama")
+  end
+
+  puts "Starting `ollama serve` in the foreground — Ctrl-C to stop.\n\n"
+  # Spawned (not exec'd) so the model-pull check below can run once this
+  # specific instance is reachable — it needs its own pull/check pass since
+  # it's backed by a different model store than the systemd daemon (see
+  # header). Runs in this process's own foreground process group, so Ctrl-C
+  # reaches it directly the same way it would `ollama serve` run by hand.
+  pid = Process.spawn("ollama", "serve")
+  wait_until_reachable
+  ensure_model_pulled
+  puts
+
+  begin
+    Process.wait(pid)
+  rescue Interrupt
+    Process.wait(pid)
+  end
+end

@@ -12,7 +12,7 @@ class DeleteTaskTool < MCP::Tool
     TaskSerialization.rescue_errors do
       TaskSerialization.find_owned_task(id) do |task|
         if task.destroy
-          TaskSerialization.deleted_response(id)
+          TaskSerialization.deleted_response(task)
         else
           TaskSerialization.persist_response(task, false)
         end

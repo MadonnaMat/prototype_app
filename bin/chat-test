@@ -1,0 +1,103 @@
+#!/usr/bin/env ruby
+# Manual testing client for POST /chat/completions (see
+# app/controllers/chat_controller.rb). Mints/reuses an API token for the
+# first user in the local dev DB, same convention as bin/mcp-inspector.
+#
+# History is stateless/client-managed (the server holds no conversation
+# state — see the /chat/completions route's design notes), so --interactive
+# mode accumulates the growing messages array here and resends the whole
+# thing each turn, exactly what any real caller (including a future chat
+# UI) has to do too.
+#
+# Usage:
+#   bin/chat-test "create a task called buy milk"   # one-shot
+#   bin/chat-test --interactive                      # multi-turn REPL
+#   bin/chat-test --url http://localhost:3001 "..."  # different port
+
+require "rubygems"
+require "bundler/setup"
+require "net/http"
+require "json"
+require "optparse"
+
+require_relative "../config/environment"
+
+options = { url: "http://localhost:3000", interactive: false }
+OptionParser.new do |opts|
+  opts.banner = "Usage: bin/chat-test [options] [\"message\"]"
+  opts.on("-i", "--interactive", "Multi-turn REPL instead of a single message") { options[:interactive] = true }
+  opts.on("--url URL", "Base URL of the Rails app (default: #{options[:url]})") { |v| options[:url] = v }
+end.parse!
+
+user = User.order(:id).first
+abort "No users exist yet — sign up in the app first, then re-run this." unless user
+user.regenerate_api_token!
+token = user.api_token
+
+# Parses one SSE event ("data: {...}\n\n") — prints content deltas inline as
+# they arrive, task_changes and errors on their own lines — and returns the
+# assistant's full reply text so --interactive can feed it back as context.
+def render_event(event)
+  reply = +""
+  event.each_line do |line|
+    data = line.strip.delete_prefix("data:").strip
+    next if data.empty? || data == "[DONE]"
+
+    payload = JSON.parse(data)
+    if payload["error"]
+      warn "\n[error] #{payload["error"]["message"]}"
+      next
+    end
+
+    content = payload.dig("choices", 0, "delta", "content")
+    if content
+      print content
+      reply << content
+      $stdout.flush
+    end
+
+    Array(payload["task_changes"]).each { |change| puts "\n  → #{change["action"]} task ##{change["id"]} #{change["title"].inspect}" }
+  end
+  reply
+end
+
+def send_message(base_url, token, messages)
+  uri = URI("#{base_url}/chat/completions")
+  reply = +""
+  Net::HTTP.start(uri.host, uri.port) do |http|
+    request = Net::HTTP::Post.new(uri, "Content-Type" => "application/json", "Authorization" => "Bearer #{token}")
+    request.body = { messages: messages }.to_json
+    http.request(request) do |response|
+      buffer = +""
+      response.read_body do |chunk|
+        buffer << chunk
+        while (boundary = buffer.index("\n\n"))
+          reply << render_event(buffer.slice!(0..boundary + 1))
+        end
+      end
+    end
+  end
+  puts
+  reply
+rescue Errno::ECONNREFUSED
+  abort "\nCouldn't reach #{base_url} — is the Rails server running (bin/dev / bin/rails server)?"
+end
+
+if options[:interactive]
+  puts "Chat with the assistant as #{user.username} (\"exit\" or Ctrl-C to quit)."
+  messages = []
+  loop do
+    print "> "
+    input = $stdin.gets&.chomp
+    break if input.nil? || %w[exit quit].include?(input.strip.downcase)
+    next if input.strip.empty?
+
+    messages << { role: "user", content: input }
+    messages << { role: "assistant", content: send_message(options[:url], token, messages) }
+  end
+else
+  message = ARGV.join(" ")
+  abort "Usage: bin/chat-test [--interactive] [--url URL] \"message\"" if message.strip.empty?
+
+  send_message(options[:url], token, [ { role: "user", content: message } ])
+end
