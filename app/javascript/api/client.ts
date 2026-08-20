@@ -24,7 +24,7 @@ interface ApiMeta {
   errors?: Record<string, string[]>
 }
 
-function csrfToken(): string | undefined {
+export function csrfToken(): string | undefined {
   return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content
 }
 
