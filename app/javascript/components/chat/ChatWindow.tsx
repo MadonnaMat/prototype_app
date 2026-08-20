@@ -47,7 +47,7 @@ export function ChatWindow({ messages, streamingMessage, isSending, error, onSen
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key !== "Enter" || event.shiftKey) return
+    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return
     event.preventDefault()
     submitDraft()
   }

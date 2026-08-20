@@ -20,7 +20,8 @@ type ChatAction =
   | { type: "SEND_START"; message: DisplayMessage }
   | { type: "DELTA"; text: string }
   | { type: "DONE"; taskChanges: TaskChange[] }
-  | { type: "ERROR"; message: string }
+  | { type: "STREAM_ERROR"; message: string }
+  | { type: "FATAL_ERROR"; message: string }
   | { type: "CLEAR" }
 
 const initialState: ChatState = {
@@ -52,11 +53,26 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
         streamingMessage: null,
         changes: [...state.changes, ...action.taskChanges],
         status: "idle",
+        error: null,
       }
-    // Partial streamed content (if any) is left in place rather than discarded — a half-written
-    // reply is still useful context for the user even though the turn didn't finish cleanly.
-    case "ERROR":
-      return { ...state, status: "error", error: action.message }
+    // A server-emitted `error` SSE frame is informational, not terminal — the stream keeps
+    // delivering deltas afterward and still ends in a normal DONE (see api/chat.ts's "keeps
+    // reading after a mid-stream error frame" test). So this only surfaces the message; it must
+    // not touch `status`, or isSending would go false mid-turn and let the user send again while
+    // the first stream is still writing into streamingMessage.
+    case "STREAM_ERROR":
+      return { ...state, error: action.message }
+    // A thrown exception (network failure, stream parse failure) really does end the turn, so —
+    // unlike STREAM_ERROR — this commits whatever partial content exists (same as DONE, so it
+    // isn't silently lost if the user immediately sends another message) and returns to idle.
+    case "FATAL_ERROR":
+      return {
+        ...state,
+        messages: state.streamingMessage ? [...state.messages, state.streamingMessage] : state.messages,
+        streamingMessage: null,
+        status: "error",
+        error: action.message,
+      }
     case "CLEAR":
       return initialState
   }
@@ -84,13 +100,13 @@ export function useChatStream() {
       for await (const event of postChatCompletion(outgoing, controller.signal)) {
         if (controller.signal.aborted) return
         if (event.type === "content_delta") dispatch({ type: "DELTA", text: event.text })
-        if (event.type === "error") dispatch({ type: "ERROR", message: event.message })
+        if (event.type === "error") dispatch({ type: "STREAM_ERROR", message: event.message })
         if (event.type === "done") dispatch({ type: "DONE", taskChanges: event.taskChanges })
       }
     } catch (error) {
       if (isAbortError(error) || controller.signal.aborted) return
       const message = errorMessage(error)
-      dispatch({ type: "ERROR", message })
+      dispatch({ type: "FATAL_ERROR", message })
       toast.error(message)
     }
   }, [])

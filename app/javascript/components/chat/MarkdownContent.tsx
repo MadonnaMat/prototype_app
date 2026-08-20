@@ -4,15 +4,37 @@ import remarkGfm from "remark-gfm"
 // react-markdown renders straight to React elements (no dangerouslySetInnerHTML) and, without
 // rehype-raw, strips any raw HTML in the source rather than rendering it — so LLM- or
 // user-authored content can't inject markup here.
+
+// Only follow schemes a click can't turn into script execution — no `javascript:`/`data:`/etc.
+function isSafeHref(href: string | undefined): href is string {
+  if (!href) return false
+  if (href.startsWith("#") || href.startsWith("/")) return true
+  return /^(https?:|mailto:)/i.test(href)
+}
+
 const components: Components = {
   p: ({ children }) => <p className="mt-2 first:mt-0">{children}</p>,
   ul: ({ children }) => <ul className="mt-2 list-disc space-y-0.5 pl-4 first:mt-0">{children}</ul>,
   ol: ({ children }) => <ol className="mt-2 list-decimal space-y-0.5 pl-4 first:mt-0">{children}</ol>,
-  a: ({ children, href }) => (
-    <a href={href} target="_blank" rel="noreferrer" className="underline underline-offset-2">
-      {children}
-    </a>
-  ),
+  a: ({ children, href }) =>
+    isSafeHref(href) ? (
+      <a href={href} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+        {children}
+      </a>
+    ) : (
+      <>{children}</>
+    ),
+  // No live <img> — rendering one would fire an unprompted GET as soon as the message displays,
+  // which is unacceptable for LLM-authored (or relayed, e.g. task-title) content. Render a
+  // click-through link instead, same trust model as the `a` override above.
+  img: ({ src, alt }) =>
+    isSafeHref(typeof src === "string" ? src : undefined) ? (
+      <a href={src} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+        {alt || "image"}
+      </a>
+    ) : (
+      <>{alt}</>
+    ),
   code: ({ children, className }) =>
     className ? (
       <code className={className}>{children}</code>
