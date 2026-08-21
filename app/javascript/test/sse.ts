@@ -25,3 +25,24 @@ export function streamOf(chunks: string[]): ReadableStream<Uint8Array> {
 export function mockFetchResolving(body: ReadableStream<Uint8Array> | null, status = 200) {
   return vi.fn().mockResolvedValue(new Response(body, { status }))
 }
+
+// Unlike streamOf/streamOfBytes (which enqueue every chunk back-to-back with
+// no real gap, so a consumer's intermediate state between two chunks is
+// never actually observable by a polling assertion like waitFor), this
+// hands the caller manual control over when each chunk arrives — needed to
+// assert on a state that a stream is expected to pass through only briefly
+// (e.g. "compacting" before real content starts).
+export function controlledStream() {
+  let controllerRef: ReadableStreamDefaultController<Uint8Array>
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controllerRef = controller
+    },
+  })
+  const encoder = new TextEncoder()
+  return {
+    stream,
+    push: (chunk: string) => controllerRef.enqueue(encoder.encode(chunk)),
+    close: () => controllerRef.close(),
+  }
+}

@@ -74,6 +74,43 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     assert_no_match(/"initialTask"/, response.body)
   end
 
+  test "assistant page does not seed conversation data when signed out" do
+    get "/assistant"
+    assert_response :success
+    assert_no_match(/"initialConversations"/, response.body)
+  end
+
+  test "assistant page seeds initialConversations scoped to the signed-in user" do
+    sign_in_as(@user)
+    get "/assistant"
+    assert_response :success
+    assert_includes response.body, conversations(:one).title
+    assert_no_match(/#{Regexp.escape(conversations(:two).title)}/, response.body)
+  end
+
+  test "assistant conversation route seeds initialConversation with its messages, plus the sidebar list" do
+    sign_in_as(@user)
+    get "/assistant/#{conversations(:one).id}"
+    assert_response :success
+    assert_includes response.body, "initialConversation"
+    assert_includes response.body, "initialConversations"
+    assert_includes response.body, messages(:one_first).content
+  end
+
+  test "assistant conversation route does not seed initialConversation for someone else's conversation" do
+    sign_in_as(@user)
+    get "/assistant/#{conversations(:two).id}"
+    assert_response :success
+    assert_no_match(/"initialConversation"/, response.body)
+  end
+
+  test "assistant conversation route renders successfully for a nonexistent conversation id without initialConversation" do
+    sign_in_as(@user)
+    get "/assistant/999999"
+    assert_response :success
+    assert_no_match(/"initialConversation"/, response.body)
+  end
+
   test "does not swallow unmatched /api routes into the SPA shell" do
     get "/api/bogus"
     assert_response :not_found

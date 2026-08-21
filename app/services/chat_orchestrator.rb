@@ -28,10 +28,10 @@ class ChatOrchestrator
     conversation = messages.dup
 
     MAX_TOOL_CALL_ROUNDS.times do
-      tool_calls, finish_reason = stream_one_turn(conversation, tools, &emit)
+      tool_calls, finish_reason, usage = stream_one_turn(conversation, tools, &emit)
 
       if tool_calls.empty?
-        emit.call({ type: :done, finish_reason: finish_reason, task_changes: @task_changes })
+        emit.call({ type: :done, finish_reason: finish_reason, task_changes: @task_changes, **usage })
         return
       end
 
@@ -44,19 +44,25 @@ class ChatOrchestrator
 
   private
 
+  # usage stays {} (never emits keys with nil values) when the provider
+  # didn't report token counts for this round, so a caller can tell "no
+  # usage reported" apart from "usage reported as zero".
   def stream_one_turn(conversation, tools, &emit)
     tool_calls = []
     finish_reason = nil
+    usage = {}
 
     @provider.stream_chat(messages: conversation, tools: tools) do |event|
       case event[:type]
       when :content_delta then emit.call(event)
       when :tool_call then tool_calls << event
-      when :done then finish_reason = event[:finish_reason]
+      when :done
+        finish_reason = event[:finish_reason]
+        usage = event.slice(:prompt_tokens, :completion_tokens)
       end
     end
 
-    [ tool_calls, finish_reason ]
+    [ tool_calls, finish_reason, usage ]
   end
 
   def assistant_tool_call_message(tool_calls)

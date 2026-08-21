@@ -30,6 +30,21 @@ class ChatOrchestratorTest < ActiveSupport::TestCase
     )
   end
 
+  test "forwards prompt/completion token counts from a scripted done event unchanged" do
+    provider = FakeChatProvider.new([
+      [ { type: :content_delta, text: "Hi" }, { type: :done, finish_reason: "stop", prompt_tokens: 42, completion_tokens: 7 } ]
+    ])
+    orchestrator = ChatOrchestrator.new(provider: provider, mcp_client: LoopingMcpClientDouble.new)
+
+    events = []
+    orchestrator.run(messages: []) { |event| events << event }
+
+    assert_equal(
+      { type: :done, finish_reason: "stop", task_changes: [], prompt_tokens: 42, completion_tokens: 7 },
+      events.last,
+    )
+  end
+
   test "stops after MAX_TOOL_CALL_ROUNDS instead of looping forever" do
     keeps_calling_tools = Array.new(ChatOrchestrator::MAX_TOOL_CALL_ROUNDS) do
       [ { type: :tool_call, id: "call_x", name: "list_tasks", arguments: {} }, { type: :done, finish_reason: "tool_calls" } ]

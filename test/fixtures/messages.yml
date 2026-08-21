@@ -1,0 +1,14 @@
+one_first:
+  conversation: one
+  role: user
+  content: "Help me plan a trip"
+
+one_reply:
+  conversation: one
+  role: assistant
+  content: "Sure, where to?"
+
+two_first:
+  conversation: two
+  role: user
+  content: "Hi"

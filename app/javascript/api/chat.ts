@@ -1,20 +1,29 @@
 import { csrfToken } from "./client"
 
-export interface ChatMessage {
-  role: "user" | "assistant"
-  content: string
-}
-
 export interface TaskChange {
   action: "created" | "updated" | "completed" | "deleted"
   id: number
   title: string
 }
 
+export interface ChatUsage {
+  promptTokens: number
+  completionTokens: number
+  contextWindow: number
+}
+
 export type ChatStreamEvent =
   | { type: "content_delta"; text: string }
-  | { type: "done"; finishReason: string | null; taskChanges: TaskChange[] }
+  | {
+      type: "done"
+      finishReason: string | null
+      taskChanges: TaskChange[]
+      conversationId: number
+      compacted: boolean
+      usage: ChatUsage | null
+    }
   | { type: "error"; message: string }
+  | { type: "compacting" }
 
 export class ChatRequestError extends Error {
   status: number
@@ -26,10 +35,20 @@ export class ChatRequestError extends Error {
   }
 }
 
+interface RawUsage {
+  prompt_tokens: number
+  completion_tokens: number
+  context_window: number
+}
+
 interface RawChunk {
   choices?: [{ delta: { content?: string }; finish_reason?: string | null }]
   task_changes?: TaskChange[]
+  conversation_id?: number
+  compacted?: boolean
+  usage?: RawUsage | null
   error?: { message: string }
+  compacting?: boolean
 }
 
 function statusMessage(status: number): string {
@@ -57,14 +76,27 @@ function extractDataLine(frame: string): string | null {
   return line ? line.slice("data: ".length) : null
 }
 
+function toUsage(usage: RawUsage | null | undefined): ChatUsage | null {
+  if (!usage) return null
+  return { promptTokens: usage.prompt_tokens, completionTokens: usage.completion_tokens, contextWindow: usage.context_window }
+}
+
 function toEvent(payload: RawChunk): ChatStreamEvent | null {
+  if (payload.compacting) return { type: "compacting" }
   if (payload.error) return { type: "error", message: payload.error.message }
 
   const choice = payload.choices?.[0]
   if (!choice) return null
 
   if ("finish_reason" in choice) {
-    return { type: "done", finishReason: choice.finish_reason ?? null, taskChanges: payload.task_changes ?? [] }
+    return {
+      type: "done",
+      finishReason: choice.finish_reason ?? null,
+      taskChanges: payload.task_changes ?? [],
+      conversationId: payload.conversation_id as number,
+      compacted: payload.compacted ?? false,
+      usage: toUsage(payload.usage),
+    }
   }
   if (choice.delta.content) {
     return { type: "content_delta", text: choice.delta.content }
@@ -107,10 +139,12 @@ async function* parseSseStream(body: ReadableStream<Uint8Array>): AsyncGenerator
   }
 }
 
-export async function* postChatCompletion(
-  messages: ChatMessage[],
-  signal: AbortSignal
-): AsyncGenerator<ChatStreamEvent> {
+export interface ChatTurn {
+  conversationId: number | null
+  content: string
+}
+
+export async function* postChatCompletion(turn: ChatTurn, signal: AbortSignal): AsyncGenerator<ChatStreamEvent> {
   let response: Response
   try {
     response = await fetch("/chat/completions", {
@@ -119,7 +153,7 @@ export async function* postChatCompletion(
         "Content-Type": "application/json",
         ...(csrfToken() ? { "X-CSRF-Token": csrfToken()! } : {}),
       },
-      body: JSON.stringify({ messages: messages.map(({ role, content }) => ({ role, content })) }),
+      body: JSON.stringify({ conversation_id: turn.conversationId, message: { content: turn.content } }),
       signal,
     })
   } catch (error) {

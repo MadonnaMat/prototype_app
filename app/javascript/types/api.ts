@@ -42,6 +42,43 @@ export interface paths {
         patch: operations["PATCH_api_tasks_id"];
         trace?: never;
     };
+    "/api/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the current user's conversations */
+        get: operations["GET_api_conversations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/conversations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a conversation with its full message history */
+        get: operations["GET_api_conversations_id"];
+        /** Rename a conversation */
+        put: operations["PUT_api_conversations_id"];
+        post?: never;
+        /** Delete a conversation */
+        delete: operations["DELETE_api_conversations_id"];
+        options?: never;
+        head?: never;
+        /** Rename a conversation */
+        patch: operations["PATCH_api_conversations_id"];
+        trace?: never;
+    };
     "/api/session": {
         parameters: {
             query?: never;
@@ -182,6 +219,55 @@ export interface components {
                 success?: boolean;
             };
         };
+        "3d503ef5d0c19e88a9706a32ed4df9ff": {
+            conversations?: {
+                id: number;
+                title: string;
+                title_generated: boolean;
+                updated_at: string;
+            }[];
+            meta?: {
+                success?: boolean;
+            };
+        };
+        c696d2c74843a0888380fd421b7aaec4: {
+            conversation?: {
+                id: number;
+                title: string;
+                title_generated: boolean;
+                updated_at: string;
+                last_prompt_tokens?: number;
+                context_window: number;
+                messages: {
+                    id: number;
+                    role: string;
+                    content: string;
+                    task_changes: {
+                        action: string;
+                        id: number;
+                        title: string;
+                    }[];
+                    created_at: string;
+                }[];
+            };
+            meta?: {
+                success?: boolean;
+            };
+        };
+        b5f61d7e73d4bd7e6cb7020e35eb0d67: {
+            title: string;
+        };
+        "094da1ad2d9d8f33bf58fdeff3711c57": {
+            conversation?: {
+                id: number;
+                title: string;
+                title_generated: boolean;
+                updated_at: string;
+            };
+            meta?: {
+                success?: boolean;
+            };
+        };
         "870d9a171fb186bf08504662107b6907": {
             email_address: string;
             password: string;
@@ -308,6 +394,33 @@ export interface components {
                 "application/json": components["schemas"]["f4f91fa9e30496301c6f992a9102b1ae"];
             };
         };
+        /** @description Conversations */
+        "7610c23f17bd7fa7eb1a1234d88e659d": {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["3d503ef5d0c19e88a9706a32ed4df9ff"];
+            };
+        };
+        /** @description Conversation found */
+        e0258537cdd0181088739df22a350329: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["c696d2c74843a0888380fd421b7aaec4"];
+            };
+        };
+        /** @description Updated */
+        ccb2020fb142df7b3af075ce19c80c54: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["094da1ad2d9d8f33bf58fdeff3711c57"];
+            };
+        };
         /** @description Logged out */
         f083757c3185154225b449cd7d64121a: {
             headers: {
@@ -402,6 +515,8 @@ export interface components {
     parameters: {
         /** @description The task ID */
         f2d93b2709f8aedff2c02092238c3a8e: number;
+        /** @description The conversation ID */
+        b47bac192f992190aadf2b91713228cf: number;
     };
     requestBodies: {
         /** @description Task attributes */
@@ -414,6 +529,12 @@ export interface components {
         "370b3d7375df9bcb9c095aad2b77b193": {
             content: {
                 "application/json": components["schemas"]["3be98a04af300e34c60ac4d293ee5744"];
+            };
+        };
+        /** @description Conversation attributes */
+        "1e54f6665d839f7e8ef1d1ee1ef9111a": {
+            content: {
+                "application/json": components["schemas"]["b5f61d7e73d4bd7e6cb7020e35eb0d67"];
             };
         };
         /** @description Credentials */
@@ -531,6 +652,84 @@ export interface operations {
         responses: {
             200: components["responses"]["189fe611a9a8af3090ea53a158aa264b"];
             403: components["responses"]["70551adacd134cfc98512370b782c82b"];
+            404: components["responses"]["46ac2f9c36cf1a3281a7bb623be16249"];
+            422: components["responses"]["df81bc72fcedd6c0018d35f41bcc3caa"];
+        };
+    };
+    GET_api_conversations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["7610c23f17bd7fa7eb1a1234d88e659d"];
+        };
+    };
+    GET_api_conversations_id: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The conversation ID */
+                id: components["parameters"]["b47bac192f992190aadf2b91713228cf"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["e0258537cdd0181088739df22a350329"];
+            404: components["responses"]["46ac2f9c36cf1a3281a7bb623be16249"];
+        };
+    };
+    PUT_api_conversations_id: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The conversation ID */
+                id: components["parameters"]["b47bac192f992190aadf2b91713228cf"];
+            };
+            cookie?: never;
+        };
+        requestBody: components["requestBodies"]["1e54f6665d839f7e8ef1d1ee1ef9111a"];
+        responses: {
+            200: components["responses"]["ccb2020fb142df7b3af075ce19c80c54"];
+            404: components["responses"]["46ac2f9c36cf1a3281a7bb623be16249"];
+            422: components["responses"]["df81bc72fcedd6c0018d35f41bcc3caa"];
+        };
+    };
+    DELETE_api_conversations_id: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The conversation ID */
+                id: components["parameters"]["b47bac192f992190aadf2b91713228cf"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["720d4914627c5848af85b036552e235a"];
+            404: components["responses"]["46ac2f9c36cf1a3281a7bb623be16249"];
+        };
+    };
+    PATCH_api_conversations_id: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The conversation ID */
+                id: components["parameters"]["b47bac192f992190aadf2b91713228cf"];
+            };
+            cookie?: never;
+        };
+        requestBody: components["requestBodies"]["1e54f6665d839f7e8ef1d1ee1ef9111a"];
+        responses: {
+            200: components["responses"]["ccb2020fb142df7b3af075ce19c80c54"];
             404: components["responses"]["46ac2f9c36cf1a3281a7bb623be16249"];
             422: components["responses"]["df81bc72fcedd6c0018d35f41bcc3caa"];
         };

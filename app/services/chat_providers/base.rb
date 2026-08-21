@@ -23,7 +23,9 @@ module ChatProviders
     #   { type: :tool_call, id:, name:, arguments: Hash } — yielded only once
     #     a tool call's arguments are fully assembled and parsed; providers
     #     own their own fragment-accumulation logic.
-    #   { type: :done, finish_reason: String }
+    #   { type: :done, finish_reason: String, prompt_tokens: Integer, completion_tokens: Integer }
+    #     — prompt_tokens:/completion_tokens: are omitted entirely (not nil)
+    #     when a provider doesn't report token usage.
     def stream_chat(messages:, tools:)
       raise NotImplementedError, "#{self.class} must implement #stream_chat"
     end

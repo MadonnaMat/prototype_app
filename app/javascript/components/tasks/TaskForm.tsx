@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import { PendingLabel } from "@/components/ui/spinner"
 import { ConfirmDialog } from "@/components/ConfirmDialog"
 import type { TaskInput } from "@/api/tasks"
 
@@ -132,7 +133,7 @@ export function TaskForm({
 
         <div className="flex gap-2">
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Saving…" : submitLabel}
+            {isSubmitting ? <PendingLabel>Saving…</PendingLabel> : submitLabel}
           </Button>
           {onCancel && (
             <Button type="button" variant="outline" onClick={handleCancelClick}>

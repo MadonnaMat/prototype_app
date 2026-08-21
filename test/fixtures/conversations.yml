@@ -1,0 +1,9 @@
+one:
+  user: one
+  title: "Plan a trip"
+  title_generated: true
+
+two:
+  user: two
+  title: "Bob's chat"
+  title_generated: true
