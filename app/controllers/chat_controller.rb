@@ -8,6 +8,7 @@ class ChatController < Api::BaseController
     run_chat
   rescue => e
     response.stream.write(sse_chunk(type: :error, text: e.message))
+    persist_error_message
   ensure
     response.stream.write("data: [DONE]\n\n")
     response.stream.close
@@ -22,17 +23,16 @@ class ChatController < Api::BaseController
   # 404/400 BEFORE response.stream is ever touched, instead of being
   # swallowed into an SSE :error frame.
   def prepare_turn
+    new_conversation = params[:conversation_id].blank?
     @conversation = find_or_create_conversation
     @conversation.messages.create!(role: "user", content: message_params[:content])
-    GenerateConversationTitleJob.perform_later(@conversation.id) if @new_conversation
+    GenerateConversationTitleJob.perform_later(@conversation.id) if new_conversation
   end
 
   def find_or_create_conversation
     if params[:conversation_id].present?
-      @new_conversation = false
       Current.user.conversations.find(params[:conversation_id])
     else
-      @new_conversation = true
       Current.user.conversations.create!(title: message_params[:content].to_s.strip.truncate(60))
     end
   end
@@ -71,7 +71,17 @@ class ChatController < Api::BaseController
   def persist_assistant_message(full_reply, event)
     content = full_reply.presence || "(No text reply for this turn.)"
     @conversation.messages.create!(role: "assistant", content: content, task_changes: event[:task_changes])
-    @conversation.update!(last_prompt_tokens: event[:prompt_tokens]) if event[:prompt_tokens]
+    @conversation.update_column(:last_prompt_tokens, event[:prompt_tokens]) if event[:prompt_tokens]
+  end
+
+  # A mid-stream exception (provider error, MCP failure) means run_chat's
+  # handle_event never reached :done, so persist_assistant_message above
+  # never ran — without this, the turn's already-persisted user message
+  # (from prepare_turn) would be left with no reply at all.
+  def persist_error_message
+    @conversation.messages.create!(role: "assistant", content: "Sorry, something went wrong generating a reply.")
+  rescue StandardError => e
+    Rails.logger.warn("ChatController failed to persist error message for conversation #{@conversation&.id}: #{e.message}")
   end
 
   def build_mcp_client
@@ -90,7 +100,13 @@ class ChatController < Api::BaseController
   def messages_with_system_prompt
     [ { role: "system", content: PromptLoader.load("chat_system_prompt") } ] +
       summary_message +
-      @conversation.messages.after(@conversation.compacted_through_message_id).map { |m| { role: m.role, content: m.content } }
+      recent_messages.map { |m| { role: m.role, content: m.content } }
+  end
+
+  # Reuses the trailing messages ConversationCompactor#call! already loaded
+  # when it ran this turn, instead of re-querying the exact same rows.
+  def recent_messages
+    @kept_after_compaction || @conversation.messages.after(@conversation.compacted_through_message_id)
   end
 
   def summary_message
@@ -100,16 +116,20 @@ class ChatController < Api::BaseController
   end
 
   def compact_if_needed!
-    @compacted = false
-    return unless @conversation.last_prompt_tokens
-    return if @conversation.last_prompt_tokens < context_window * ConversationCompactor::THRESHOLD
+    return unless ConversationCompactor.needed?(@conversation, context_window: context_window)
 
     # Compaction makes its own LLM call before the turn's real reply starts
     # streaming — flush a signal now so the client can show it's not just a
     # slow first token, since nothing else is written to the stream during it.
     response.stream.write(sse_chunk(type: :compacting))
-    ConversationCompactor.new(conversation: @conversation).call!
-    @compacted = true
+    @kept_after_compaction = ConversationCompactor.new(conversation: @conversation).call!
+  end
+
+  # Reflects whether ConversationCompactor actually condensed anything, not
+  # just whether it was asked to try — it can no-op when there aren't yet
+  # enough messages past the last compaction to be worth summarizing.
+  def compacted?
+    @kept_after_compaction.present?
   end
 
   def context_window
@@ -132,7 +152,7 @@ class ChatController < Api::BaseController
       choices: [ { delta: {}, finish_reason: event[:finish_reason] } ],
       task_changes: event[:task_changes],
       conversation_id: @conversation.id,
-      compacted: @compacted,
+      compacted: compacted?,
       usage: event[:prompt_tokens] && {
         prompt_tokens: event[:prompt_tokens], completion_tokens: event[:completion_tokens], context_window: context_window
       }

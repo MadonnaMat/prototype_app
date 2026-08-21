@@ -2,12 +2,13 @@ import type { ChatUsage } from "@/api/chat"
 
 export interface ContextUsageMeterProps {
   usage: ChatUsage | null
-  compactionNotice: string | null
+  hasCompactionNotice: boolean
 }
 
 const WARN_THRESHOLD_PCT = 80
+const COMPACTION_NOTICE = "Earlier messages were summarized to save context."
 
-export function ContextUsageMeter({ usage, compactionNotice }: ContextUsageMeterProps) {
+export function ContextUsageMeter({ usage, hasCompactionNotice }: ContextUsageMeterProps) {
   if (!usage) return null
 
   const pct = Math.min(100, Math.round((usage.promptTokens / usage.contextWindow) * 100))
@@ -21,7 +22,7 @@ export function ContextUsageMeter({ usage, compactionNotice }: ContextUsageMeter
         </div>
         <span className={isWarn ? "text-destructive" : undefined}>{pct}% of context used</span>
       </div>
-      {compactionNotice && <p className="mt-1">{compactionNotice}</p>}
+      {hasCompactionNotice && <p className="mt-1">{COMPACTION_NOTICE}</p>}
     </div>
   )
 }

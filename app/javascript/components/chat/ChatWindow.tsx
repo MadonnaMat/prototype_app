@@ -16,7 +16,7 @@ export interface ChatWindowProps {
   notFound: boolean
   error: string | null
   usage: ChatUsage | null
-  compactionNotice: string | null
+  hasCompactionNotice: boolean
   onSend: (text: string) => void
 }
 
@@ -89,7 +89,7 @@ export function ChatWindow({
   notFound,
   error,
   usage,
-  compactionNotice,
+  hasCompactionNotice,
   onSend,
 }: ChatWindowProps) {
   const [draft, setDraft] = useState("")
@@ -130,7 +130,7 @@ export function ChatWindow({
 
       {error && <p className="px-3 pb-2 text-sm text-destructive">{error}</p>}
 
-      <ContextUsageMeter usage={usage} compactionNotice={compactionNotice} />
+      <ContextUsageMeter usage={usage} hasCompactionNotice={hasCompactionNotice} />
 
       <div className="flex items-end gap-2 border-t p-3">
         <Textarea

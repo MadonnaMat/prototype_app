@@ -3,8 +3,9 @@ import { useNavigate, type NavigateFunction } from "react-router"
 import { useQueryClient, type QueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { postChatCompletion, ChatRequestError, type ChatStreamEvent, type ChatTurn, type ChatUsage, type TaskChange } from "@/api/chat"
-import type { ConversationDetail } from "@/api/conversations"
+import type { Conversation } from "@/api/conversations"
 import { useSsrData } from "@/src/TaskApp/routes/ssr-data-context"
+import { ssrInitialDataFor } from "@/lib/ssr"
 import { useConversationQuery, conversationKeys } from "./useConversationQueries"
 
 export interface DisplayMessage {
@@ -21,7 +22,7 @@ interface ChatState {
   isCompacting: boolean
   error: string | null
   usage: ChatUsage | null
-  compactionNotice: string | null
+  hasCompactionNotice: boolean
   hasHydrated: boolean
 }
 
@@ -43,11 +44,9 @@ const initialState: ChatState = {
   isCompacting: false,
   error: null,
   usage: null,
-  compactionNotice: null,
+  hasCompactionNotice: false,
   hasHydrated: false,
 }
-
-const COMPACTION_NOTICE = "Earlier messages were summarized to save context."
 
 // Shared by DONE and FATAL_ERROR: both end the turn by folding whatever
 // streamingMessage exists into messages (so partial content isn't lost).
@@ -65,7 +64,7 @@ function applyDone(state: ChatState, action: Extract<ChatAction, { type: "DONE" 
     isCompacting: false,
     error: null,
     usage: action.usage ?? state.usage,
-    compactionNotice: action.compacted ? COMPACTION_NOTICE : state.compactionNotice,
+    hasCompactionNotice: action.compacted || state.hasCompactionNotice,
   }
 }
 
@@ -81,7 +80,7 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
         status: "sending",
         isCompacting: false,
         error: null,
-        compactionNotice: null,
+        hasCompactionNotice: false,
       }
     // Real content can only start after compaction (if any) has fully
     // finished server-side, so this is also the signal that compaction, if
@@ -140,27 +139,48 @@ interface StreamEventContext {
   queryClient: QueryClient
 }
 
+// Bumps the conversation's position/updated_at in the already-cached sidebar
+// list in place instead of refetching it — the list's row order/timestamp
+// are the only things a turn on an existing conversation can change from the
+// client's point of view (title changes are handled separately by
+// useConversationsQuery's refetchWhileTitlesPending).
+function bumpConversationInList(queryClient: QueryClient, conversationId: number) {
+  queryClient.setQueryData<Conversation[]>(conversationKeys.lists(), (conversations) => {
+    if (!conversations) return conversations
+    const updatedAt = new Date().toISOString()
+    return conversations
+      .map((conversation) => (conversation.id === conversationId ? { ...conversation, updated_at: updatedAt } : conversation))
+      .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+  })
+}
+
 // Returns whether this was the turn's terminal :done event, so runStream can
 // tell "the stream ended normally" apart from "the stream just stopped"
 // (see STREAM_ENDED_WITHOUT_DONE).
 function applyStreamEvent(event: ChatStreamEvent, turn: ChatTurn, { dispatch, navigate, queryClient }: StreamEventContext): boolean {
-  if (event.type === "content_delta") dispatch({ type: "DELTA", text: event.text })
-  if (event.type === "error") dispatch({ type: "STREAM_ERROR", message: event.message })
-  if (event.type === "compacting") dispatch({ type: "COMPACTING" })
-  if (event.type !== "done") return false
-
-  dispatch({ type: "DONE", taskChanges: event.taskChanges, usage: event.usage, compacted: event.compacted })
-  void queryClient.invalidateQueries({ queryKey: conversationKeys.lists() })
-  if (turn.conversationId === null) navigate(`/assistant/${event.conversationId}`, { replace: true })
-  return true
-}
-
-// Only trust SSR-seeded data when it's actually for the route we're on — it stays
-// fixed for the whole app lifetime, so a client-side nav to a different conversation
-// must fall through to a real fetch instead of flashing the previous one's data (see
-// useTaskFormController's ssrInitialDataFor, which this mirrors).
-function ssrInitialDataFor(id: string | undefined, initialConversation: ConversationDetail | undefined) {
-  return initialConversation && String(initialConversation.id) === id ? initialConversation : undefined
+  switch (event.type) {
+    case "content_delta":
+      dispatch({ type: "DELTA", text: event.text })
+      return false
+    case "error":
+      dispatch({ type: "STREAM_ERROR", message: event.message })
+      return false
+    case "compacting":
+      dispatch({ type: "COMPACTING" })
+      return false
+    case "done":
+      dispatch({ type: "DONE", taskChanges: event.taskChanges, usage: event.usage, compacted: event.compacted })
+      // A brand-new conversation needs a real refetch — it isn't in the
+      // cached list at all yet — but an existing one just needs its
+      // position/timestamp bumped in place.
+      if (turn.conversationId === null) {
+        void queryClient.invalidateQueries({ queryKey: conversationKeys.lists() })
+        navigate(`/assistant/${event.conversationId}`, { replace: true })
+      } else {
+        bumpConversationInList(queryClient, event.conversationId)
+      }
+      return true
+  }
 }
 
 // conversationId is undefined for a brand-new chat (see ChatPage, which
@@ -253,7 +273,7 @@ export function useChatStream(conversationId?: string) {
     isCompacting: state.isCompacting,
     error: state.error,
     usage: state.usage,
-    compactionNotice: state.compactionNotice,
+    hasCompactionNotice: state.hasCompactionNotice,
     sendMessage,
   }
 }

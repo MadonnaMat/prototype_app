@@ -11,7 +11,6 @@ class MissionControlJobsController < ApplicationController
   private
 
   def require_signed_in_user
-    resume_session
-    redirect_to "/login" unless Current.session&.user
+    redirect_to "/login" unless authenticated?
   end
 end

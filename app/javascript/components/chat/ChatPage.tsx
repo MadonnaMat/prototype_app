@@ -19,7 +19,7 @@ function ChatPageContent({ conversationId }: { conversationId?: string }) {
         notFound={chat.notFound}
         error={chat.error}
         usage={chat.usage}
-        compactionNotice={chat.compactionNotice}
+        hasCompactionNotice={chat.hasCompactionNotice}
         onSend={chat.sendMessage}
       />
       <div>

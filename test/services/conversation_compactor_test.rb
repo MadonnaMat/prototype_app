@@ -8,10 +8,11 @@ class ConversationCompactorTest < ActiveSupport::TestCase
   test "does nothing when there aren't more than KEEP_RECENT pending messages" do
     compactor = ConversationCompactor.new(conversation: @conversation)
 
-    ChatProviders.stub(:build, ->(*) { raise "should not be called" }) do
+    result = ChatProviders.stub(:build, ->(*) { raise "should not be called" }) do
       compactor.call!
     end
 
+    assert_nil result
     assert_nil @conversation.reload.summary_text
     assert_nil @conversation.compacted_through_message_id
   end
@@ -23,7 +24,7 @@ class ConversationCompactorTest < ActiveSupport::TestCase
       [ { type: :content_delta, text: "Summary of early turns." }, { type: :done, finish_reason: "stop" } ]
     ])
 
-    ChatProviders.stub(:build, provider) do
+    result = ChatProviders.stub(:build, provider) do
       ConversationCompactor.new(conversation: @conversation).call!
     end
 
@@ -31,6 +32,7 @@ class ConversationCompactorTest < ActiveSupport::TestCase
     assert_equal "Summary of early turns.", @conversation.summary_text
     remaining = @conversation.messages.after(@conversation.compacted_through_message_id)
     assert_equal ConversationCompactor::KEEP_RECENT, remaining.count
+    assert_equal remaining.to_a, result
   end
 
   test "falls back to a placeholder summary when the provider fails" do

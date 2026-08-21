@@ -14,16 +14,20 @@ class GenerateConversationTitleJob < ApplicationJob
 
     title = generate_title(conversation)
     conversation.update!(title: title, title_generated: true) if title.present?
-    conversation.update!(title_generated: true) unless conversation.title_generated?
   rescue StandardError => e
     Rails.logger.warn("GenerateConversationTitleJob failed for conversation #{conversation_id}: #{e.message}")
-    conversation&.update!(title_generated: true)
+  ensure
+    # Guarantees this job always leaves title_generated: true — whether it
+    # succeeded, got a blank title, or raised — so the placeholder title
+    # becomes permanent and frontend polling (refetchWhileTitlesPending)
+    # terminates either way, from one place instead of three.
+    conversation&.update!(title_generated: true) unless conversation&.title_generated?
   end
 
   private
 
   def generate_title(conversation)
-    first_message = conversation.messages.order(:created_at).first
+    first_message = conversation.messages.first
     ChatProviders.complete(messages: title_messages(first_message)).strip.delete_prefix('"').delete_suffix('"').truncate(60)
   end
 

@@ -19,9 +19,13 @@ Rails.application.routes.draw do
   # MissionControlJobsController and config/initializers/mission_control_jobs.rb.
   mount MissionControl::Jobs::Engine, at: "/jobs"
 
-  # Streaming chat endpoint (OpenAI-compatible path, so official SDKs' chat
-  # completions convenience methods work against it out of the box). See
-  # app/controllers/chat_controller.rb.
+  # Streaming chat endpoint for this app's persisted-conversation chat
+  # feature. NOT OpenAI-SDK compatible despite the path name: the body is
+  # `{ conversation_id, message: { content } }`, not an OpenAI-style
+  # `messages` array — history is reconstructed server-side from the
+  # persisted Conversation on every request (see
+  # ChatController#messages_with_system_prompt), never trusting a
+  # client-resent transcript. See app/controllers/chat_controller.rb.
   post "/chat/completions", to: "chat#create"
 
   # Render dynamic PWA files from app/views/pwa/* (remember to link manifest in application.html.erb)

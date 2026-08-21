@@ -7,16 +7,26 @@ class ConversationCompactor
   THRESHOLD = 0.8
   KEEP_RECENT = 6
 
+  def self.needed?(conversation, context_window:)
+    conversation.last_prompt_tokens && conversation.last_prompt_tokens >= context_window * THRESHOLD
+  end
+
   def initialize(conversation:)
     @conversation = conversation
   end
 
+  # Returns the trailing KEEP_RECENT messages actually kept when compaction
+  # runs, or nil when it no-ops (so callers can tell the two apart instead of
+  # assuming success — see ChatController#compact_if_needed!) and reuse the
+  # already-loaded messages instead of re-querying them.
   def call!
-    pending = @conversation.messages.after(@conversation.compacted_through_message_id).order(:created_at).to_a
-    return if pending.size <= KEEP_RECENT
+    pending = @conversation.messages.after(@conversation.compacted_through_message_id).to_a
+    return nil if pending.size <= KEEP_RECENT
 
+    to_keep = pending.last(KEEP_RECENT)
     to_summarize = pending.first(pending.size - KEEP_RECENT)
     @conversation.update!(summary_text: generate_summary(to_summarize), compacted_through_message_id: to_summarize.last.id)
+    to_keep
   end
 
   private

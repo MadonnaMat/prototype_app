@@ -80,6 +80,17 @@ module Api
       assert_includes meta["errors"]["title"], "can't be blank"
     end
 
+    test "update without a title in the params does not stamp title_generated" do
+      @conversation.update!(title_generated: false)
+      # :extra is filtered out by conversation_params.permit(:title) but keeps
+      # the :conversation param non-blank, so this exercises "present params,
+      # no :title key" rather than tripping the require(:conversation) guard.
+      patch api_conversation_url(@conversation), params: { conversation: { extra: "field" } },
+        headers: @auth_headers, as: :json
+      assert_response :success
+      assert_not @conversation.reload.title_generated
+    end
+
     test "update on another user's conversation returns not found" do
       patch api_conversation_url(conversations(:two)), params: { conversation: { title: "Hijacked" } },
         headers: @auth_headers, as: :json

@@ -17,6 +17,7 @@ module Api
     rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
     rescue_from ActionController::ParameterMissing, with: :render_bad_request
     rescue_from ActionDispatch::Http::Parameters::ParseError, with: :render_bad_request
+    rescue_from ActiveRecord::RecordInvalid, with: :render_record_invalid
 
     private
 
@@ -28,6 +29,15 @@ module Api
 
     def render_validation_error(errors)
       render json: { meta: { success: false, errors: errors } }, status: :unprocessable_entity
+    end
+
+    # Catches a `save!`/`create!`/`update!` that raises on invalid attributes
+    # (e.g. ChatController creating a Conversation from blank message
+    # content) so it renders the same 422 envelope as an explicit
+    # render_validation_error call, instead of falling through to the
+    # StandardError catch-all as an unhandled-looking 500.
+    def render_record_invalid(exception)
+      render_validation_error(exception.record.errors)
     end
 
     def render_not_found(exception)

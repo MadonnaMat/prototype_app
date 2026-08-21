@@ -6,8 +6,10 @@ import { MemoryRouter } from "react-router"
 import { HttpResponse, http } from "msw"
 import { streamOf, mockFetchResolving, controlledStream } from "@/test/sse"
 import { server } from "@/test/msw/server"
-import { buildConversationDetail } from "@/test/msw/handlers"
+import { buildConversation, buildConversationDetail } from "@/test/msw/handlers"
+import type { Conversation } from "@/api/conversations"
 import { useChatStream } from "./useChatStream"
+import { conversationKeys } from "./useConversationQueries"
 
 const mockToastError = vi.fn()
 vi.mock("sonner", () => ({ toast: { error: (...args: unknown[]) => mockToastError(...args) } }))
@@ -110,7 +112,7 @@ describe("useChatStream", () => {
     expect(mockNavigate).not.toHaveBeenCalled()
   })
 
-  it("invalidates the conversations list query when a turn completes", async () => {
+  it("invalidates the conversations list query when a brand-new conversation's first turn completes", async () => {
     vi.stubGlobal("fetch", mockFetchResolving(streamOf([doneChunk(1, "First"), "data: [DONE]\n\n"])))
     const { Wrapper, queryClient } = createWrapper()
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries")
@@ -120,6 +122,26 @@ describe("useChatStream", () => {
     await waitFor(() => expect(result.current.isSending).toBe(false))
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["conversations", "list"] })
+  })
+
+  it("patches the cached conversations list in place (no refetch) when a follow-up on an existing conversation completes", async () => {
+    const { Wrapper, queryClient } = createWrapper()
+    queryClient.setQueryData(conversationKeys.lists(), [buildConversation({ id: 7, updated_at: "2020-01-01T00:00:00.000Z" })])
+
+    // Hydration must resolve via the real (MSW-backed) fetch BEFORE fetch is
+    // stubbed for the chat POST below — same reasoning as the "does not
+    // navigate on a follow-up" test above.
+    const { result } = renderHook(() => useChatStream("7"), { wrapper: Wrapper })
+    await waitFor(() => expect(result.current.isLoadingHistory).toBe(false))
+
+    vi.stubGlobal("fetch", mockFetchResolving(streamOf([doneChunk(1, "First", 7), "data: [DONE]\n\n"])))
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries")
+    act(() => result.current.sendMessage("follow up"))
+    await waitFor(() => expect(result.current.isSending).toBe(false))
+
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: conversationKeys.lists() })
+    const [cached] = queryClient.getQueryData(conversationKeys.lists()) as Conversation[]
+    expect(cached.updated_at).not.toBe("2020-01-01T00:00:00.000Z")
   })
 
   it("surfaces usage and a compaction notice from the done event", async () => {
@@ -132,7 +154,7 @@ describe("useChatStream", () => {
     await waitFor(() => expect(result.current.isSending).toBe(false))
 
     expect(result.current.usage).toEqual({ promptTokens: 3300, completionTokens: 50, contextWindow: 4096 })
-    expect(result.current.compactionNotice).toBe("Earlier messages were summarized to save context.")
+    expect(result.current.hasCompactionNotice).toBe(true)
   })
 
   it("reports isCompacting while waiting on a :compacting chunk, clearing it once real content streams in", async () => {

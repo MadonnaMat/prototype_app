@@ -55,6 +55,43 @@ class ChatControllerTest < ActiveSupport::TestCase
     assert_operator body.index('"compacting":true'), :<, body.index('"content":"Hi"')
   end
 
+  test "the compacted flag in DONE is false when compaction is attempted but no-ops (too few pending messages)" do
+    conversations(:one).update!(last_prompt_tokens: 3500) # over threshold, but only 3 pending messages (<= KEEP_RECENT)
+    provider = FakeChatProvider.new([
+      [ { type: :content_delta, text: "Hi" }, { type: :done, finish_reason: "stop" } ]
+    ])
+
+    response = nil
+    ChatProviders.stub(:build, -> { provider }) do
+      response = post_chat(conversation_id: conversations(:one).id, content: "hi")
+    end
+
+    assert_includes response.body, %("compacting":true)
+    assert_includes response.body, %("compacted":false)
+  end
+
+  test "the compacted flag in DONE is true once compaction actually ran" do
+    conversation = conversations(:one)
+    conversation.update!(last_prompt_tokens: 3500)
+    (ConversationCompactor::KEEP_RECENT - conversation.messages.count).times do |i|
+      conversation.messages.create!(role: "user", content: "filler #{i}")
+    end
+    # Two scripted turns: ConversationCompactor#call! makes its own
+    # ChatProviders.complete call to generate the summary before the
+    # turn's real reply streams, both via the same stubbed provider.
+    provider = FakeChatProvider.new([
+      [ { type: :content_delta, text: "Summary of earlier turns." }, { type: :done, finish_reason: "stop" } ],
+      [ { type: :content_delta, text: "Hi" }, { type: :done, finish_reason: "stop" } ]
+    ])
+
+    response = nil
+    ChatProviders.stub(:build, -> { provider }) do
+      response = post_chat(conversation_id: conversation.id, content: "hi")
+    end
+
+    assert_includes response.body, %("compacted":true)
+  end
+
   test "does not emit a :compacting chunk when the last turn's usage is well under the threshold" do
     conversations(:one).update!(last_prompt_tokens: 100)
     provider = FakeChatProvider.new([
@@ -192,6 +229,16 @@ class ChatControllerTest < ActiveSupport::TestCase
     assert_equal false, meta["success"]
   end
 
+  test "blank message content on a brand-new conversation returns a clean 422, not an unhandled 500" do
+    response = post_chat_raw({ conversation_id: nil, message: { content: "   " } })
+
+    assert_equal 422, response.code.to_i
+    assert_match(%r{\Aapplication/json}, response["Content-Type"])
+    meta = JSON.parse(response.body)["meta"]
+    assert_equal false, meta["success"]
+    assert meta["errors"].present?
+  end
+
   test "another user's conversation_id returns a clean 404 as JSON" do
     response = post_chat_raw({ conversation_id: conversations(:two).id, message: { content: "hi" } })
 
@@ -209,6 +256,18 @@ class ChatControllerTest < ActiveSupport::TestCase
     assert_includes body, %(data: {"choices":[{"delta":{"content":"partial"}}]})
     assert_includes body, %(data: {"error":{"message":"boom"}})
     assert_includes body, "data: [DONE]"
+  end
+
+  test "a mid-stream provider error still persists an assistant reply, so the turn isn't left one-sided" do
+    ChatProviders.stub(:build, -> { RaisingChatProvider.new }) do
+      assert_difference("Message.count", 2) do # the user's message (before_action) plus a fallback assistant reply
+        post_chat(conversation_id: conversations(:one).id, content: "hi")
+      end
+    end
+
+    persisted = conversations(:one).messages.order(:created_at).last
+    assert_equal "assistant", persisted.role
+    assert persisted.content.present?
   end
 
   private

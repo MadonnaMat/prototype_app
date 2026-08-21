@@ -15,7 +15,7 @@ function renderChatWindow(overrides: Partial<ChatWindowProps> = {}) {
     notFound: false,
     error: null,
     usage: null,
-    compactionNotice: null,
+    hasCompactionNotice: false,
     onSend,
     ...overrides,
   }

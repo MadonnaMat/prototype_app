@@ -26,6 +26,7 @@ class ChatOrchestrator
     @task_changes = []
     tools = @mcp_client.tool_specs
     conversation = messages.dup
+    usage = {}
 
     MAX_TOOL_CALL_ROUNDS.times do
       tool_calls, finish_reason, usage = stream_one_turn(conversation, tools, &emit)
@@ -39,7 +40,7 @@ class ChatOrchestrator
       tool_calls.each { |call| conversation << tool_result_message(call) }
     end
 
-    emit.call({ type: :done, finish_reason: "tool_call_limit_reached", task_changes: @task_changes })
+    emit.call({ type: :done, finish_reason: "tool_call_limit_reached", task_changes: @task_changes, **usage })
   end
 
   private

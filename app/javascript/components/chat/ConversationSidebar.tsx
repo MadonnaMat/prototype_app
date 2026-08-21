@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog"
 import { useConversationsQuery } from "@/hooks/useConversationQueries"
 import { useRenameConversationMutation, useDeleteConversationMutation } from "@/hooks/useConversationMutations"
 import { useSsrData } from "@/src/TaskApp/routes/ssr-data-context"
+import { cn } from "@/lib/utils"
 import type { Conversation } from "@/api/conversations"
 
 interface ConversationRowProps {
@@ -52,7 +53,7 @@ function ConversationRow({ conversation, isActive }: ConversationRowProps) {
     })
   }
 
-  const rowClassName = isActive ? "flex items-center gap-1 rounded-lg bg-muted px-2 py-1.5" : "flex items-center gap-1 rounded-lg px-2 py-1.5 hover:bg-muted"
+  const rowClassName = cn("flex items-center gap-1 rounded-lg px-2 py-1.5", isActive ? "bg-muted" : "hover:bg-muted")
 
   if (isEditing) {
     return (

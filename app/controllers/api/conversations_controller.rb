@@ -25,7 +25,7 @@ module Api
     # @response Validation error(422) [Hash{ meta: Hash{ success: Boolean, errors: Hash{ title: Array<String> } } }]
     # @response Not found(404) [Hash{ meta: Hash{ success: Boolean, error: String } }]
     def update
-      if @conversation.update(conversation_params.merge(title_generated: true))
+      if @conversation.update(rename_params)
         render_resource(conversation: ConversationSerialization.conversation_list_json(@conversation))
       else
         render_validation_error(@conversation.errors)
@@ -49,6 +49,15 @@ module Api
 
     def conversation_params
       params.require(:conversation).permit(:title)
+    end
+
+    # title_generated only belongs on a param-driven update when the request
+    # actually touches :title — this endpoint permits nothing else today,
+    # but merging the flag in unconditionally would silently mis-stamp any
+    # future non-title field (e.g. archiving) as a title rename.
+    def rename_params
+      attrs = conversation_params
+      attrs.key?(:title) ? attrs.merge(title_generated: true) : attrs
     end
   end
 end
