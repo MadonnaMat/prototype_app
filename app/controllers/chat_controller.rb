@@ -1,25 +1,45 @@
-# Streaming chat completions over Ollama + the app's own MCP server (see
-# config/routes.rb, app/services/chat_orchestrator.rb). Inherits
-# Api::BaseController (even though it's routed outside /api) purely to reuse
-# its Bearer/cookie auth and CSRF handling — the JSON envelope helpers
-# (render_resource etc.) don't apply here since the response is a stream.
 class ChatController < Api::BaseController
   include ActionController::Live
+
+  before_action :prepare_turn
 
   def create
     set_streaming_headers
     run_chat
   rescue => e
     response.stream.write(sse_chunk(type: :error, text: e.message))
+    persist_error_message
   ensure
-    # In `ensure` (not just the success path) so a client waiting on the
-    # standard terminator still gets one after a mid-stream error, instead
-    # of the connection just closing with no [DONE].
     response.stream.write("data: [DONE]\n\n")
     response.stream.close
   end
 
   private
+
+  # Runs as a before_action (not inline in #create) so a bad/missing
+  # conversation_id (ActiveRecord::RecordNotFound) or missing message
+  # content (ActionController::ParameterMissing) is caught by
+  # Api::BaseController's rescue_from chain and rendered as a clean JSON
+  # 404/400 BEFORE response.stream is ever touched, instead of being
+  # swallowed into an SSE :error frame.
+  def prepare_turn
+    new_conversation = params[:conversation_id].blank?
+    @conversation = find_or_create_conversation
+    @conversation.messages.create!(role: "user", content: message_params[:content])
+    GenerateConversationTitleJob.perform_later(@conversation.id) if new_conversation
+  end
+
+  def find_or_create_conversation
+    if params[:conversation_id].present?
+      Current.user.conversations.find(params[:conversation_id])
+    else
+      Current.user.conversations.create!(title: message_params[:content].to_s.strip.truncate(60))
+    end
+  end
+
+  def message_params
+    params.require(:message).permit(:content)
+  end
 
   def set_streaming_headers
     response.headers["Content-Type"] = "text/event-stream"
@@ -28,48 +48,114 @@ class ChatController < Api::BaseController
   end
 
   def run_chat
-    mcp_client = McpClient.new(base_url: "#{request.base_url}/mcp", bearer_token: mcp_authorization_header)
-    orchestrator = ChatOrchestrator.new(provider: ChatProviders.build, mcp_client: mcp_client)
-    orchestrator.run(messages: messages_with_system_prompt) { |event| response.stream.write(sse_chunk(event)) }
+    compact_if_needed!
+    full_reply = +""
+    orchestrator = ChatOrchestrator.new(provider: ChatProviders.build, mcp_client: build_mcp_client)
+    orchestrator.run(messages: messages_with_system_prompt) { |event| handle_event(event, full_reply) }
   end
 
-  # Api::BaseController accepts either a Bearer token or the SPA's session
-  # cookie, but McpClient needs an Authorization-header-shaped credential to
-  # forward to /mcp regardless of which one authenticated this request. A
-  # cookie-authenticated request (the future chat UI's case) has no such
-  # header to forward, so mint a short-lived McpDelegationToken instead —
-  # see that class for why (in short: forwarding the cookie itself would be
-  # a CSRF hole, and forwarding/minting the persistent api_token would
-  # invalidate it for any other use of the same account).
+  def handle_event(event, full_reply)
+    full_reply << event[:text] if event[:type] == :content_delta
+    persist_assistant_message(full_reply, event) if event[:type] == :done
+    response.stream.write(sse_chunk(event))
+  end
+
+  # full_reply can legitimately be blank — e.g. every round of a turn was
+  # consumed by tool calls with no trailing text (including hitting
+  # MAX_TOOL_CALL_ROUNDS), or the model just returned an empty completion.
+  # Message#content requires presence, so this substitutes a fallback rather
+  # than letting Message.create! raise: an unhandled exception here is
+  # caught by ChatController#create's top-level rescue, which emits an SSE
+  # :error frame and closes the stream WITHOUT ever sending a real :done
+  # payload — silently leaving the conversation's last turn unrecorded.
+  def persist_assistant_message(full_reply, event)
+    content = full_reply.presence || "(No text reply for this turn.)"
+    @conversation.messages.create!(role: "assistant", content: content, task_changes: event[:task_changes])
+    @conversation.update_column(:last_prompt_tokens, event[:prompt_tokens]) if event[:prompt_tokens]
+  end
+
+  # A mid-stream exception (provider error, MCP failure) means run_chat's
+  # handle_event never reached :done, so persist_assistant_message above
+  # never ran — without this, the turn's already-persisted user message
+  # (from prepare_turn) would be left with no reply at all.
+  def persist_error_message
+    @conversation.messages.create!(role: "assistant", content: "Sorry, something went wrong generating a reply.")
+  rescue StandardError => e
+    Rails.logger.warn("ChatController failed to persist error message for conversation #{@conversation&.id}: #{e.message}")
+  end
+
+  def build_mcp_client
+    McpClient.new(base_url: "#{request.base_url}/mcp", bearer_token: mcp_authorization_header)
+  end
+
   def mcp_authorization_header
     request.headers["Authorization"].presence || "Bearer #{McpDelegationToken.generate(Current.user)}"
   end
 
-  # ActionController::Live runs the action body in its own thread, so the
-  # inherited rescue_from isn't reliable for errors raised after streaming
-  # has started (headers are already flushed) — hence the explicit
-  # rescue/ensure above instead of relying on it.
-  def parsed_request_messages
-    params.require(:messages).map { |message| message.permit(:role, :content).to_h.symbolize_keys }
-  end
-
+  # Reconstructed server-side from persisted history on every request —
+  # never trusts a client-resent transcript. summary_text/
+  # compacted_through_message_id (see ConversationCompactor) let old turns
+  # be replaced by a condensed summary in what's SENT to the model, without
+  # touching what's persisted.
   def messages_with_system_prompt
-    [ { role: "system", content: PromptLoader.load("chat_system_prompt") } ] + parsed_request_messages
+    [ { role: "system", content: PromptLoader.load("chat_system_prompt") } ] +
+      summary_message +
+      recent_messages.map { |m| { role: m.role, content: m.content } }
   end
 
-  # ChatOrchestrator executes tool calls server-side and only ever emits
-  # :content_delta/:done — :tool_call events never reach here, they're
-  # consumed internally by the orchestrator's own loop. `task_changes` on
-  # the terminal chunk (not a standard OpenAI field) lists every task the
-  # model touched this turn — {action, id, title} — so a caller can act on
-  # what happened without parsing the model's prose reply.
+  # Reuses the trailing messages ConversationCompactor#call! already loaded
+  # when it ran this turn, instead of re-querying the exact same rows.
+  def recent_messages
+    @kept_after_compaction || @conversation.messages.after(@conversation.compacted_through_message_id)
+  end
+
+  def summary_message
+    return [] if @conversation.summary_text.blank?
+
+    [ { role: "system", content: "Earlier conversation summary: #{@conversation.summary_text}" } ]
+  end
+
+  def compact_if_needed!
+    return unless ConversationCompactor.needed?(@conversation, context_window: context_window)
+
+    # Compaction makes its own LLM call before the turn's real reply starts
+    # streaming — flush a signal now so the client can show it's not just a
+    # slow first token, since nothing else is written to the stream during it.
+    response.stream.write(sse_chunk(type: :compacting))
+    @kept_after_compaction = ConversationCompactor.new(conversation: @conversation).call!
+  end
+
+  # Reflects whether ConversationCompactor actually condensed anything, not
+  # just whether it was asked to try — it can no-op when there aren't yet
+  # enough messages past the last compaction to be worth summarizing.
+  def compacted?
+    @kept_after_compaction.present?
+  end
+
+  def context_window
+    Rails.application.config.x.ollama_context_window
+  end
+
   def sse_chunk(event)
     payload =
       case event[:type]
       when :content_delta then { choices: [ { delta: { content: event[:text] } } ] }
-      when :done then { choices: [ { delta: {}, finish_reason: event[:finish_reason] } ], task_changes: event[:task_changes] }
+      when :done then done_payload(event)
       when :error then { error: { message: event[:text] } }
+      when :compacting then { compacting: true }
       end
     "data: #{payload.to_json}\n\n"
+  end
+
+  def done_payload(event)
+    {
+      choices: [ { delta: {}, finish_reason: event[:finish_reason] } ],
+      task_changes: event[:task_changes],
+      conversation_id: @conversation.id,
+      compacted: compacted?,
+      usage: event[:prompt_tokens] && {
+        prompt_tokens: event[:prompt_tokens], completion_tokens: event[:completion_tokens], context_window: context_window
+      }
+    }
   end
 end

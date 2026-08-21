@@ -5,14 +5,8 @@ import { useCreateTaskMutation, useUpdateTaskMutation } from "@/hooks/useTaskMut
 import { useSsrData } from "@/src/TaskApp/routes/ssr-data-context"
 import { useAuth } from "@/contexts/AuthContext"
 import { ApiValidationError, ApiRequestError } from "@/api/client"
+import { ssrInitialDataFor } from "@/lib/ssr"
 import type { Task, TaskInput } from "@/api/tasks"
-
-// Only trust SSR-seeded data when it's actually for the route we're on -- it stays
-// fixed for the whole app lifetime, so a client-side nav to a different task's edit
-// page must fall through to a real fetch instead of flashing the previous task's data.
-function ssrInitialDataFor(id: string | undefined, initialTask: Task | undefined) {
-  return initialTask && String(initialTask.id) === id ? initialTask : undefined
-}
 
 function classifyLoadError(isError: boolean, error: unknown) {
   if (!isError) return { notFound: false, loadError: false }

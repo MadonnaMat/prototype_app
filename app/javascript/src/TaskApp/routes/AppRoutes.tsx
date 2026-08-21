@@ -22,6 +22,7 @@ export function AppRoutes() {
             still 404s/errors normally instead of rendering the SPA shell; a client
             route at /chat would collide with that exclusion on a hard reload. */}
         <Route path="/assistant" element={<ChatPage />} />
+        <Route path="/assistant/:conversationId" element={<ChatPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

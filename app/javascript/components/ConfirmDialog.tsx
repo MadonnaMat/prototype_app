@@ -16,7 +16,7 @@ export interface ConfirmDialogProps {
   onOpenChange: (open: boolean) => void
   title: string
   description: string
-  confirmLabel?: string
+  confirmLabel?: ReactNode
   cancelLabel?: string
   confirmDisabled?: boolean
   onConfirm: () => void

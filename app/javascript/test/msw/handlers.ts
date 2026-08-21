@@ -1,6 +1,7 @@
 import { http, HttpResponse } from "msw"
 import type { Task, TaskInput } from "@/api/tasks"
 import type { User } from "@/api/auth"
+import type { Conversation, ConversationDetail } from "@/api/conversations"
 
 export function buildTask(overrides: Partial<Task> = {}): Task {
   return {
@@ -12,6 +13,26 @@ export function buildTask(overrides: Partial<Task> = {}): Task {
     owner_username: "testuser",
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
+    ...overrides,
+  }
+}
+
+export function buildConversation(overrides: Partial<Conversation> = {}): Conversation {
+  return {
+    id: 1,
+    title: "Plan a trip",
+    title_generated: true,
+    updated_at: "2026-01-01T00:00:00.000Z",
+    ...overrides,
+  }
+}
+
+export function buildConversationDetail(overrides: Partial<ConversationDetail> = {}): ConversationDetail {
+  return {
+    ...buildConversation(),
+    last_prompt_tokens: undefined,
+    context_window: 4096,
+    messages: [],
     ...overrides,
   }
 }
@@ -55,6 +76,24 @@ export const handlers = [
   }),
 
   http.delete("/api/tasks/:id", () => HttpResponse.json({ meta: { success: true } })),
+
+  http.get("/api/conversations", () => HttpResponse.json({ conversations: [buildConversation()], meta: { success: true } })),
+
+  http.get("/api/conversations/:id", ({ params }) =>
+    HttpResponse.json({ conversation: buildConversationDetail({ id: Number(params.id) }), meta: { success: true } })
+  ),
+
+  http.patch("/api/conversations/:id", async ({ params, request }) => {
+    const { conversation } = (await request.json()) as { conversation: { title?: string } }
+    if (!conversation.title) {
+      return HttpResponse.json({ meta: { success: false, errors: { title: ["can't be blank"] } } }, { status: 422 })
+    }
+    return HttpResponse.json(
+      { conversation: buildConversation({ id: Number(params.id), title: conversation.title, title_generated: true }), meta: { success: true } }
+    )
+  }),
+
+  http.delete("/api/conversations/:id", () => HttpResponse.json({ meta: { success: true } })),
 
   // Default: authenticated as buildUser() — most tests don't care about auth
   // and would otherwise all need to opt into a logged-in state individually.

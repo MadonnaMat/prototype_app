@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { PendingLabel } from "@/components/ui/spinner"
 import { useAuth } from "@/contexts/AuthContext"
 import { regenerateToken, updateAccount } from "@/api/auth"
 import { ApiValidationError } from "@/api/client"
@@ -76,7 +77,7 @@ export function AccountPage() {
         <Input id="account-username" value={username} onChange={(event) => setUsername(event.target.value)} />
         {usernameError && <p className="text-sm text-destructive">{usernameError}</p>}
         <Button type="submit" size="sm" className="self-start" disabled={isSavingUsername}>
-          {isSavingUsername ? "Saving…" : "Save username"}
+          {isSavingUsername ? <PendingLabel>Saving…</PendingLabel> : "Save username"}
         </Button>
       </form>
 
@@ -103,7 +104,7 @@ export function AccountPage() {
           onClick={handleRegenerate}
           disabled={isRegenerating}
         >
-          {isRegenerating ? "Regenerating…" : "Regenerate token"}
+          {isRegenerating ? <PendingLabel>Regenerating…</PendingLabel> : "Regenerate token"}
         </Button>
       </section>
     </div>

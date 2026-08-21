@@ -5,6 +5,7 @@ Rails.application.routes.draw do
 
   namespace :api do
     resources :tasks
+    resources :conversations, only: %i[index show update destroy]
     resource :session, only: %i[create destroy]
     resource :registration, only: :create
     resource :account, only: %i[show update] do
@@ -14,10 +15,17 @@ Rails.application.routes.draw do
 
   mount OasRails::Engine => "/docs"
   mount McpServerBuilder.transport => "/mcp"
+  # Solid Queue dashboard — gated behind the session cookie auth, see
+  # MissionControlJobsController and config/initializers/mission_control_jobs.rb.
+  mount MissionControl::Jobs::Engine, at: "/jobs"
 
-  # Streaming chat endpoint (OpenAI-compatible path, so official SDKs' chat
-  # completions convenience methods work against it out of the box). See
-  # app/controllers/chat_controller.rb.
+  # Streaming chat endpoint for this app's persisted-conversation chat
+  # feature. NOT OpenAI-SDK compatible despite the path name: the body is
+  # `{ conversation_id, message: { content } }`, not an OpenAI-style
+  # `messages` array — history is reconstructed server-side from the
+  # persisted Conversation on every request (see
+  # ChatController#messages_with_system_prompt), never trusting a
+  # client-resent transcript. See app/controllers/chat_controller.rb.
   post "/chat/completions", to: "chat#create"
 
   # Render dynamic PWA files from app/views/pwa/* (remember to link manifest in application.html.erb)
@@ -32,11 +40,15 @@ Rails.application.routes.draw do
   # /tasks/:id/edit path. Must come before the catch-all below.
   get "/tasks/:id/edit", to: "pages#home"
 
+  # Same reasoning as /tasks/:id/edit above, for seeding SSR props on the
+  # React Router /assistant/:conversationId path.
+  get "/assistant/:conversation_id", to: "pages#home"
+
   # Client-side routing fallback (React Router paths like /tasks/new).
-  # Excludes /api, /docs, /mcp, and /chat (and their sub-paths) so unmatched
-  # requests under those prefixes still 404/error normally instead of
-  # rendering the SPA shell.
+  # Excludes /api, /docs, /mcp, /chat, and /jobs (and their sub-paths) so
+  # unmatched requests under those prefixes still 404/error normally instead
+  # of rendering the SPA shell.
   get "*path", to: "pages#home",
-      constraints: ->(request) { !request.path.match?(%r{\A/(api|docs|mcp|chat)(/|\z)}) },
+      constraints: ->(request) { !request.path.match?(%r{\A/(api|docs|mcp|chat|jobs)(/|\z)}) },
       format: false
 end

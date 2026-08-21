@@ -8,6 +8,10 @@ async function collect(events: AsyncGenerator<ChatStreamEvent>): Promise<ChatStr
   return collected
 }
 
+function send(content = "hi", conversationId: number | null = null) {
+  return postChatCompletion({ conversationId, content }, new AbortController().signal)
+}
+
 describe("postChatCompletion", () => {
   beforeEach(() => {
     document.head.innerHTML = '<meta name="csrf-token" content="test-csrf-token">'
@@ -27,7 +31,7 @@ describe("postChatCompletion", () => {
       )
     )
 
-    const events = await collect(postChatCompletion([], new AbortController().signal))
+    const events = await collect(send())
 
     expect(events).toEqual([
       { type: "content_delta", text: "Hi" },
@@ -43,28 +47,70 @@ describe("postChatCompletion", () => {
       )
     )
 
-    const events = await collect(postChatCompletion([], new AbortController().signal))
+    const events = await collect(send())
 
     expect(events).toEqual([{ type: "content_delta", text: "Hi" }])
   })
 
-  it("yields a done event with task_changes and stops after [DONE]", async () => {
+  it("yields a compacting event ahead of the real reply", async () => {
     vi.stubGlobal(
       "fetch",
       mockFetchResolving(
         streamOf([
-          'data: {"choices":[{"delta":{"content":"ok"}}]}\n\n',
-          'data: {"choices":[{"delta":{},"finish_reason":"stop"}],"task_changes":[{"action":"created","id":42,"title":"Test"}]}\n\n',
+          'data: {"compacting":true}\n\n',
+          'data: {"choices":[{"delta":{"content":"Hi"}}]}\n\n',
           "data: [DONE]\n\n",
         ])
       )
     )
 
-    const events = await collect(postChatCompletion([], new AbortController().signal))
+    const events = await collect(send())
+
+    expect(events).toEqual([{ type: "compacting" }, { type: "content_delta", text: "Hi" }])
+  })
+
+  it("yields a done event with task_changes, conversation_id, compacted, and usage", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockFetchResolving(
+        streamOf([
+          'data: {"choices":[{"delta":{"content":"ok"}}]}\n\n',
+          'data: {"choices":[{"delta":{},"finish_reason":"stop"}],"task_changes":[{"action":"created","id":42,"title":"Test"}],"conversation_id":7,"compacted":true,"usage":{"prompt_tokens":100,"completion_tokens":20,"context_window":4096}}\n\n',
+          "data: [DONE]\n\n",
+        ])
+      )
+    )
+
+    const events = await collect(send())
 
     expect(events).toEqual([
       { type: "content_delta", text: "ok" },
-      { type: "done", finishReason: "stop", taskChanges: [{ action: "created", id: 42, title: "Test" }] },
+      {
+        type: "done",
+        finishReason: "stop",
+        taskChanges: [{ action: "created", id: 42, title: "Test" }],
+        conversationId: 7,
+        compacted: true,
+        usage: { promptTokens: 100, completionTokens: 20, contextWindow: 4096 },
+      },
+    ])
+  })
+
+  it("defaults compacted to false and usage to null when the server omits them", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockFetchResolving(
+        streamOf([
+          'data: {"choices":[{"delta":{},"finish_reason":"stop"}],"task_changes":[],"conversation_id":7}\n\n',
+          "data: [DONE]\n\n",
+        ])
+      )
+    )
+
+    const events = await collect(send())
+
+    expect(events).toEqual([
+      { type: "done", finishReason: "stop", taskChanges: [], conversationId: 7, compacted: false, usage: null },
     ])
   })
 
@@ -80,7 +126,7 @@ describe("postChatCompletion", () => {
       )
     )
 
-    const events = await collect(postChatCompletion([], new AbortController().signal))
+    const events = await collect(send())
 
     expect(events).toEqual([
       { type: "error", message: "boom" },
@@ -99,7 +145,7 @@ describe("postChatCompletion", () => {
 
     vi.stubGlobal("fetch", mockFetchResolving(streamOfBytes([bytes.slice(0, splitAt), bytes.slice(splitAt)])))
 
-    const events = await collect(postChatCompletion([], new AbortController().signal))
+    const events = await collect(send())
 
     expect(events).toEqual([{ type: "content_delta", text: "café" }])
   })
@@ -107,19 +153,28 @@ describe("postChatCompletion", () => {
   it("rejects with a status-aware ChatRequestError before reading the body on a non-2xx response", async () => {
     vi.stubGlobal("fetch", mockFetchResolving(null, 401))
 
-    await expect(collect(postChatCompletion([], new AbortController().signal))).rejects.toThrow(ChatRequestError)
-    await expect(collect(postChatCompletion([], new AbortController().signal))).rejects.toThrow(
-      "Session expired — please log in again."
-    )
+    await expect(collect(send())).rejects.toThrow(ChatRequestError)
+    await expect(collect(send())).rejects.toThrow("Session expired — please log in again.")
   })
 
-  it("sends the CSRF token header on the outgoing request", async () => {
+  it("sends conversation_id and message.content in the request body, with the CSRF token header", async () => {
     const fetchMock = mockFetchResolving(streamOf(["data: [DONE]\n\n"]))
     vi.stubGlobal("fetch", fetchMock)
 
-    await collect(postChatCompletion([{ role: "user", content: "hi" }], new AbortController().signal))
+    await collect(send("hi", 7))
 
     const [, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(JSON.parse(options.body as string)).toEqual({ conversation_id: 7, message: { content: "hi" } })
     expect((options.headers as Record<string, string>)["X-CSRF-Token"]).toBe("test-csrf-token")
+  })
+
+  it("sends a null conversation_id for a brand-new chat", async () => {
+    const fetchMock = mockFetchResolving(streamOf(["data: [DONE]\n\n"]))
+    vi.stubGlobal("fetch", fetchMock)
+
+    await collect(send("hi", null))
+
+    const [, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(JSON.parse(options.body as string)).toEqual({ conversation_id: null, message: { content: "hi" } })
   })
 })

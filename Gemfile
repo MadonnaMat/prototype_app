@@ -37,6 +37,11 @@ gem "solid_cache"
 gem "solid_queue"
 gem "solid_cable"
 
+# Web dashboard for Solid Queue (and other supported adapters): inspect
+# queues, retry/discard jobs. Mounted at /jobs, gated behind the same
+# session cookie auth as the rest of the app — see MissionControlJobsController.
+gem "mission_control-jobs"
+
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false
 

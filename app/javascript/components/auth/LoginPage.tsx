@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { PendingLabel } from "@/components/ui/spinner"
 import { useAuth } from "@/contexts/AuthContext"
 import { ApiRequestError } from "@/api/client"
 
@@ -52,7 +53,7 @@ export function LoginPage() {
           />
         </div>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Logging in…" : "Log in"}
+          {isSubmitting ? <PendingLabel>Logging in…</PendingLabel> : "Log in"}
         </Button>
       </form>
       <p className="mt-4 text-sm text-muted-foreground">

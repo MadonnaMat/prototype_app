@@ -1,4 +1,5 @@
 import { useParams, useNavigate, Link } from "react-router"
+import { PendingLabel } from "@/components/ui/spinner"
 import { TaskForm } from "./TaskForm"
 import { useTaskFormController } from "./useTaskFormController"
 
@@ -42,7 +43,11 @@ export function TaskFormPage() {
   }
 
   if (!isReady) {
-    return <div className="mx-auto max-w-lg p-4">Loading…</div>
+    return (
+      <div className="mx-auto max-w-lg p-4">
+        <PendingLabel>Loading…</PendingLabel>
+      </div>
+    )
   }
 
   return (

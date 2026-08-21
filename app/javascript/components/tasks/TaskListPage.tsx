@@ -1,5 +1,6 @@
 import { Link } from "react-router"
 import { Button } from "@/components/ui/button"
+import { PendingLabel } from "@/components/ui/spinner"
 import { useTasksQuery } from "@/hooks/useTaskQueries"
 import { useSsrData } from "@/src/TaskApp/routes/ssr-data-context"
 import type { Task } from "@/api/tasks"
@@ -12,7 +13,12 @@ interface TaskListBodyProps {
 }
 
 function TaskListBody({ tasks, isPending, isError }: TaskListBodyProps) {
-  if (isPending) return <p>Loading…</p>
+  if (isPending)
+    return (
+      <p>
+        <PendingLabel>Loading…</PendingLabel>
+      </p>
+    )
   if (isError) return <p className="text-destructive">Failed to load tasks.</p>
   if (!tasks || tasks.length === 0) return <p className="text-muted-foreground">No tasks yet.</p>
 

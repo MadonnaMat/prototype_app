@@ -41,6 +41,27 @@ module ChatProviders
       assert_equal({ type: :done, finish_reason: "tool_calls" }, events.last)
     end
 
+    test "a trailing usage-only chunk (empty choices) is folded into the done event" do
+      sse = <<~SSE
+        data: {"choices":[{"delta":{"role":"assistant","content":"Hi"},"finish_reason":null}]}
+
+        data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
+
+        data: {"choices":[],"usage":{"prompt_tokens":42,"completion_tokens":7}}
+
+        data: [DONE]
+
+      SSE
+      provider = build_provider(stream_chunks(sse))
+
+      events = collect_events(provider)
+
+      assert_equal [
+        { type: :content_delta, text: "Hi" },
+        { type: :done, finish_reason: "stop", prompt_tokens: 42, completion_tokens: 7 }
+      ], events
+    end
+
     test "a non-2xx response raises instead of silently yielding nothing" do
       provider = build_provider(proc { |_env| [ 500, {}, "internal error" ] })
 

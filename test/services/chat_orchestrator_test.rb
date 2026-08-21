@@ -30,9 +30,27 @@ class ChatOrchestratorTest < ActiveSupport::TestCase
     )
   end
 
-  test "stops after MAX_TOOL_CALL_ROUNDS instead of looping forever" do
+  test "forwards prompt/completion token counts from a scripted done event unchanged" do
+    provider = FakeChatProvider.new([
+      [ { type: :content_delta, text: "Hi" }, { type: :done, finish_reason: "stop", prompt_tokens: 42, completion_tokens: 7 } ]
+    ])
+    orchestrator = ChatOrchestrator.new(provider: provider, mcp_client: LoopingMcpClientDouble.new)
+
+    events = []
+    orchestrator.run(messages: []) { |event| events << event }
+
+    assert_equal(
+      { type: :done, finish_reason: "stop", task_changes: [], prompt_tokens: 42, completion_tokens: 7 },
+      events.last,
+    )
+  end
+
+  test "stops after MAX_TOOL_CALL_ROUNDS instead of looping forever, still reporting the last round's usage" do
     keeps_calling_tools = Array.new(ChatOrchestrator::MAX_TOOL_CALL_ROUNDS) do
-      [ { type: :tool_call, id: "call_x", name: "list_tasks", arguments: {} }, { type: :done, finish_reason: "tool_calls" } ]
+      [
+        { type: :tool_call, id: "call_x", name: "list_tasks", arguments: {} },
+        { type: :done, finish_reason: "tool_calls", prompt_tokens: 100, completion_tokens: 10 }
+      ]
     end
     provider = FakeChatProvider.new(keeps_calling_tools)
     mcp_client = LoopingMcpClientDouble.new
@@ -44,6 +62,11 @@ class ChatOrchestratorTest < ActiveSupport::TestCase
     assert_equal ChatOrchestrator::MAX_TOOL_CALL_ROUNDS, mcp_client.call_count
     assert_equal :done, events.last[:type]
     assert_equal "tool_call_limit_reached", events.last[:finish_reason]
+    # Regression check: without carrying the last round's usage forward, this event
+    # used to omit prompt_tokens/completion_tokens entirely — see ChatController
+    # #persist_assistant_message, which only records last_prompt_tokens when present.
+    assert_equal 100, events.last[:prompt_tokens]
+    assert_equal 10, events.last[:completion_tokens]
   end
 
   # Avoids MAX_TOOL_CALL_ROUNDS real MCP round trips (and Minitest::Mock's
