@@ -117,7 +117,7 @@ jobs:
       # starts the workers fresh and clears it. config/ci.rb still owns the
       # actual command; this only adds a retry around invoking it.
       - name: Run tests
-        uses: nick-fields/retry@v3
+        uses: nick-fields/retry@v4
         env:
           RAILS_ENV: test
           # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
@@ -176,7 +176,7 @@ jobs:
       # still exhaust that in-test retry. A step-level retry starts the whole
       # browser session fresh; config/ci.rb still owns the actual command.
       - name: Run System Tests
-        uses: nick-fields/retry@v3
+        uses: nick-fields/retry@v4
         env:
           RAILS_ENV: test
           # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
